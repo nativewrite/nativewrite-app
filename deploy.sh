@@ -126,7 +126,7 @@ if [ ! -f "vercel.json" ]; then
     }
   ],
   "env": {
-    "OPENAI_API_KEY": "@openai_key",
+    "OPENAI_API_KEY": "@openai_api_key",
     "ANTHROPIC_API_KEY": "@anthropic_key",
     "ASSEMBLYAI_API_KEY": "@assemblyai_key",
     "STRIPE_SECRET_KEY": "@stripe_secret_key",
