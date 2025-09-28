@@ -125,21 +125,6 @@ if [ ! -f "vercel.json" ]; then
       "dest": "app/$1"
     }
   ],
-  "env": {
-    "OPENAI_API_KEY": "@openai_api_key",
-    "ANTHROPIC_API_KEY": "@anthropic_key",
-    "ASSEMBLYAI_API_KEY": "@assemblyai_key",
-    "STRIPE_SECRET_KEY": "@stripe_secret_key",
-    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "@stripe_publishable_key",
-    "STRIPE_WEBHOOK_SECRET": "@stripe_webhook_secret",
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_ANON_KEY": "@supabase_anon_key",
-    "RESEND_API_KEY": "@resend_key",
-    "AUTH_SECRET": "@auth_secret",
-    "GOOGLE_CLIENT_ID": "@google_client_id",
-    "GOOGLE_CLIENT_SECRET": "@google_client_secret",
-    "ZEROGPT_API_KEY": "@zerogpt_key"
-  }
 }
 EOF
     print_success "vercel.json created"
