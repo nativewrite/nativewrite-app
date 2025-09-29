@@ -1,54 +1,57 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export function Navbar() {
+  const pathname = usePathname();
+
   return (
-    <nav className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Link href="/" className="text-xl font-bold text-gray-900">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-white/20">
+      <div className="mx-auto max-w-6xl px-6 py-4">
+        <div className="flex items-center justify-between">
+          <Link href="/" className="text-2xl font-bold text-slate-900 hover:text-[#1E3A8A] transition-colors">
             NativeWrite
           </Link>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          <Link 
-            href="/dashboard" 
-            className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-          >
-            Dashboard
-          </Link>
-          <Link 
-            href="/humanizer" 
-            className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-          >
-            Humanizer
-          </Link>
-          <Link 
-            href="/transcriber" 
-            className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-          >
-            Transcriber
-          </Link>
-          <Link 
-            href="/bookwriter" 
-            className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-          >
-            Book Writer
-          </Link>
-          <Link 
-            href="/pricing" 
-            className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-          >
-            Pricing
-          </Link>
-          <Link 
-            href="/account" 
-            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-          >
-            Account
-          </Link>
+          
+          <div className="flex items-center space-x-8">
+            <Link 
+              href="/" 
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                pathname === '/' 
+                  ? 'text-[#1E3A8A] bg-[#1E3A8A]/10' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              Home
+            </Link>
+            <Link 
+              href="/pricing" 
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                pathname === '/pricing' 
+                  ? 'text-[#1E3A8A] bg-[#1E3A8A]/10' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              Pricing
+            </Link>
+            <Link 
+              href="/about" 
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                pathname === '/about' 
+                  ? 'text-[#1E3A8A] bg-[#1E3A8A]/10' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              About
+            </Link>
+            <Link 
+              href="/login" 
+              className="bg-[#1E3A8A] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#1E40AF] transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+            >
+              Login
+            </Link>
+          </div>
         </div>
       </div>
     </nav>
