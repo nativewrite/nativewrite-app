@@ -31,7 +31,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Humanizer Card */}
-            <div className="group relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
+            <Link href="/dashboard/humanizer" className="group relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <div className="relative">
                 <div className="w-12 h-12 bg-[#1E3A8A] rounded-xl flex items-center justify-center mb-6">
@@ -44,10 +44,10 @@ export default function HomePage() {
                   Transform AI-generated text into natural, human-like writing that passes detection tools.
                 </p>
               </div>
-            </div>
+            </Link>
 
             {/* Transcriber Card */}
-            <div className="group relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
+            <Link href="/dashboard/transcriber" className="group relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-green-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <div className="relative">
                 <div className="w-12 h-12 bg-[#1E3A8A] rounded-xl flex items-center justify-center mb-6">
@@ -60,10 +60,10 @@ export default function HomePage() {
                   Convert audio to text with speaker detection and export to Word, PDF, or SRT.
                 </p>
               </div>
-            </div>
+            </Link>
 
             {/* Book Writer Card */}
-            <div className="group relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
+            <Link href="/dashboard/bookwriter" className="group relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <div className="relative">
                 <div className="w-12 h-12 bg-[#1E3A8A] rounded-xl flex items-center justify-center mb-6">
@@ -76,7 +76,7 @@ export default function HomePage() {
                   AI-assisted book creation with chapter planning, writing, and professional export.
                 </p>
               </div>
-            </div>
+            </Link>
           </div>
         </div>
       </section>

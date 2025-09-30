@@ -1,106 +1,44 @@
-import Link from "next/link";
-
-export const metadata = {
-  title: "NativeWrite Pricing | Free, Pro, Pro+ Plans",
-  description: "Choose the perfect NativeWrite plan for your needs. Free tier available, Pro plans with advanced features.",
-};
+"use client";
 
 const plans = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    description: "Perfect for trying out NativeWrite",
-    features: [
-      "500 characters/day humanization",
-      "1 transcription per day",
-      "Basic export formats",
-      "Community support"
-    ],
-    cta: "Get Started Free",
-    href: "/login",
-    popular: false
-  },
-  {
-    name: "Pro",
-    price: "$19",
-    period: "per month",
-    description: "For content creators and professionals",
-    features: [
-      "50,000 characters/month",
-      "Unlimited transcriptions",
-      "Book Writer access",
-      "Advanced export formats",
-      "Priority support"
-    ],
-    cta: "Start Pro Trial",
-    href: "/api/stripe/checkout?plan=pro",
-    popular: true
-  },
-  {
-    name: "Pro+",
-    price: "$49",
-    period: "per month",
-    description: "For teams and power users",
-    features: [
-      "250,000+ characters/month",
-      "My Style AI training",
-      "Claude-powered rewrites",
-      "Team collaboration",
-      "API access",
-      "White-label options"
-    ],
-    cta: "Upgrade to Pro+",
-    href: "/api/stripe/checkout?plan=pro-plus",
-    popular: false
-  }
+  { name: "Free", price: "$0", period: "forever", description: "Perfect for trying out NativeWrite", features: ["500 characters/day humanization","1 transcription per day","Basic export formats","Community support"], priceId: null, cta: "Get Started Free", popular: false },
+  { name: "Pro", price: "$19", period: "per month", description: "For content creators and professionals", features: ["50,000 characters/month","Unlimited transcriptions","Book Writer access","Advanced export formats","Priority support"], priceId: "price_pro_replace", cta: "Start Pro Trial", popular: true },
+  { name: "Pro+", price: "$49", period: "per month", description: "For teams and power users", features: ["250,000+ characters/month","My Style AI training","Claude-powered rewrites","Team collaboration","API access","White-label options"], priceId: "price_pro_plus_replace", cta: "Upgrade to Pro+", popular: false },
 ];
+
+async function startCheckout(priceId: string | null) {
+  if (!priceId) {
+    window.location.href = "/login";
+    return;
+  }
+  const email = window.prompt("Enter your email for checkout") || "";
+  const res = await fetch("/api/checkout/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ priceId, email }),
+  });
+  const data = await res.json();
+  if (data.url) window.location.href = data.url;
+}
 
 export default function PricingPage() {
   return (
     <main className="min-h-screen bg-[#F9FAFB] pt-20 pb-20">
       <div className="mx-auto max-w-7xl px-6">
-        {/* Header */}
         <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-6xl font-bold text-slate-900 mb-6">
-            Simple Pricing
-          </h1>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            Choose the plan that fits your workflow. Start free, upgrade anytime.
-          </p>
+          <h1 className="text-4xl md:text-6xl font-bold text-slate-900 mb-6">Simple Pricing</h1>
+          <p className="text-xl text-slate-600 max-w-2xl mx-auto">Choose the plan that fits your workflow. Start free, upgrade anytime.</p>
         </div>
 
-        {/* Pricing Toggle */}
-        <div className="flex justify-center mb-12">
-          <div className="relative rounded-xl bg-white/20 backdrop-blur-lg p-1 border border-white/20">
-            <div className="flex">
-              <button className="px-6 py-3 text-sm font-semibold text-white bg-[#1E3A8A] rounded-lg transition-all duration-300">
-                Monthly
-              </button>
-              <button className="px-6 py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">
-                Annual
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan) => (
-            <div
-              key={plan.name}
-              className={`relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl transition-all duration-500 transform hover:-translate-y-2 ${
-                plan.popular ? 'ring-2 ring-[#1E3A8A] scale-105' : ''
-              }`}
-            >
+            <div key={plan.name} className={`relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl transition-all duration-500 transform hover:-translate-y-2 ${plan.popular ? 'ring-2 ring-[#1E3A8A] scale-105' : ''}`}>
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-[#1E3A8A] text-white px-4 py-1 rounded-full text-sm font-semibold">
-                    Most Popular
-                  </span>
+                  <span className="bg-[#1E3A8A] text-white px-4 py-1 rounded-full text-sm font-semibold">Most Popular</span>
                 </div>
               )}
-              
+
               <div className="text-center mb-8">
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
                 <div className="mb-2">
@@ -121,16 +59,9 @@ export default function PricingPage() {
                 ))}
               </ul>
 
-              <Link
-                href={plan.href}
-                className={`w-full block text-center py-4 px-6 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                  plan.popular
-                    ? 'bg-[#1E3A8A] text-white hover:bg-[#1E40AF] shadow-lg hover:shadow-xl'
-                    : 'bg-white/20 text-slate-900 hover:bg-white/30 border border-white/30'
-                }`}
-              >
+              <button onClick={() => startCheckout(plan.priceId)} className={`w-full block text-center py-4 px-6 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${plan.popular ? 'bg-[#1E3A8A] text-white hover:bg-[#1E40AF] shadow-lg hover:shadow-xl' : 'bg-white/20 text-slate-900 hover:bg-white/30 border border-white/30'}`}>
                 {plan.cta}
-              </Link>
+              </button>
             </div>
           ))}
         </div>
