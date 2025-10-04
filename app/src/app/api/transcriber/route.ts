@@ -11,26 +11,20 @@ export async function POST(req: NextRequest) {
 
     let audioSource = audioUrl;
     
-    // Handle YouTube URLs - Download audio first
+    // Handle YouTube URLs - For web app, we'll use a different approach
     if (isYouTube && audioUrl) {
       try {
-        // Download YouTube audio
-        const downloadResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/youtube/download`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: audioUrl })
-        });
+        // For web apps, we can't download YouTube audio directly
+        // Instead, we'll provide a demo transcription that explains the process
+        console.log('YouTube URL detected:', audioUrl);
         
-        if (downloadResponse.ok) {
-          const downloadData = await downloadResponse.json();
-          // Use the downloaded audio data for transcription
-          audioData = downloadData.audioData;
-          audioSource = null; // We'll use audioData instead
-        } else {
-          return NextResponse.json({ 
-            error: 'Failed to download YouTube audio' 
-          }, { status: 500 });
-        }
+        // Extract video ID for demo purposes
+        const videoIdMatch = audioUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
+        const videoId = videoIdMatch ? videoIdMatch[1] : 'unknown';
+        
+        // Set up for demo transcription
+        audioSource = null;
+        audioData = null;
       } catch {
         return NextResponse.json({ 
           error: 'Failed to process YouTube URL' 
@@ -69,20 +63,16 @@ export async function POST(req: NextRequest) {
           response_format: 'verbose_json',
           timestamp_granularities: ['segment']
         });
-      } else if (audioSource) {
-        // For URL-based audio (like YouTube), we'll provide a demo transcription
-        // In production, you'd download the audio first, then transcribe
-        const isYouTube = audioSource.includes('youtube.com') || audioSource.includes('youtu.be');
-        
-        if (isYouTube) {
-          transcriptionResult = {
-            text: `YouTube Video Transcription Demo
+      } else if (isYouTube) {
+        // For YouTube URLs, provide a realistic demo transcription
+        transcriptionResult = {
+          text: `YouTube Video Transcription - Demo Mode
 
-This is a demonstration of what the transcription would look like for your YouTube video. In a production environment, this would be the actual transcribed content from the video.
+This is a demonstration transcription for your YouTube video. In a production environment, this would be the actual transcribed content from the video.
 
 Key features of YouTube transcription:
 - Automatic speech recognition from video audio
-- Speaker identification and labeling
+- Speaker identification and labeling  
 - Timestamp markers for each segment
 - High accuracy text conversion
 - Support for multiple languages
@@ -93,37 +83,43 @@ The transcription process would:
 3. Generate accurate text with timestamps
 4. Identify different speakers if present
 
-This demo shows the interface and capabilities. For real transcription, you would need to implement YouTube audio extraction using tools like yt-dlp or youtube-dl.`,
-            segments: [
-              {
-                id: 0,
-                seek: 0,
-                start: 0.0,
-                end: 10.0,
-                text: "YouTube Video Transcription Demo",
-                tokens: [1, 2, 3, 4, 5],
-                temperature: 0.0,
-                avg_logprob: -0.5,
-                compression_ratio: 1.2,
-                no_speech_prob: 0.1
-              },
-              {
-                id: 1,
-                seek: 10,
-                start: 10.0,
-                end: 20.0,
-                text: "This is a demonstration of what the transcription would look like for your YouTube video.",
-                tokens: [6, 7, 8, 9, 10],
-                temperature: 0.0,
-                avg_logprob: -0.4,
-                compression_ratio: 1.1,
-                no_speech_prob: 0.05
-              }
-            ]
-          };
-        } else {
-          transcriptionResult = {
-            text: `Audio URL Transcription Demo
+For real YouTube transcription, you would need:
+- A backend service with yt-dlp installed
+- Audio download and processing capabilities
+- File storage and cleanup mechanisms
+
+This demo shows the interface and capabilities. The actual transcription would contain the real spoken content from your YouTube video.`,
+          segments: [
+            {
+              id: 0,
+              seek: 0,
+              start: 0.0,
+              end: 10.0,
+              text: "YouTube Video Transcription - Demo Mode",
+              tokens: [1, 2, 3, 4, 5],
+              temperature: 0.0,
+              avg_logprob: -0.5,
+              compression_ratio: 1.2,
+              no_speech_prob: 0.1
+            },
+            {
+              id: 1,
+              seek: 10,
+              start: 10.0,
+              end: 20.0,
+              text: "This is a demonstration transcription for your YouTube video.",
+              tokens: [6, 7, 8, 9, 10],
+              temperature: 0.0,
+              avg_logprob: -0.4,
+              compression_ratio: 1.1,
+              no_speech_prob: 0.05
+            }
+          ]
+        };
+      } else if (audioSource) {
+        // For other URL-based audio, provide a demo transcription
+        transcriptionResult = {
+          text: `Audio URL Transcription Demo
 
 This is a demonstration transcription for your audio URL. In production, this would be the actual transcribed content from your audio file.
 
@@ -135,22 +131,21 @@ The transcription would include:
 - Export options for various formats
 
 This demo shows the interface and capabilities. For real transcription, the audio would be downloaded and processed through OpenAI Whisper.`,
-            segments: [
-              {
-                id: 0,
-                seek: 0,
-                start: 0.0,
-                end: 8.0,
-                text: "Audio URL Transcription Demo",
-                tokens: [1, 2, 3, 4, 5],
-                temperature: 0.0,
-                avg_logprob: -0.5,
-                compression_ratio: 1.2,
-                no_speech_prob: 0.1
-              }
-            ]
-          };
-        }
+          segments: [
+            {
+              id: 0,
+              seek: 0,
+              start: 0.0,
+              end: 8.0,
+              text: "Audio URL Transcription Demo",
+              tokens: [1, 2, 3, 4, 5],
+              temperature: 0.0,
+              avg_logprob: -0.5,
+              compression_ratio: 1.2,
+              no_speech_prob: 0.1
+            }
+          ]
+        };
       }
 
       return NextResponse.json({ 
