@@ -22,9 +22,8 @@ export async function POST(req: NextRequest) {
         const videoIdMatch = audioUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
         const videoId = videoIdMatch ? videoIdMatch[1] : 'unknown';
         
-        // Set up for demo transcription
+        // Set up for demo transcription - we'll handle this in the transcription logic
         audioSource = null;
-        audioData = null;
       } catch {
         return NextResponse.json({ 
           error: 'Failed to process YouTube URL' 
