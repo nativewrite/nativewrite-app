@@ -10,19 +10,19 @@ export async function POST(req: NextRequest) {
     }
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are an expert at humanizing AI-generated text. Rewrite the given text to sound more natural, human-like, and conversational while maintaining the original meaning and key information. Make it sound like it was written by a human, not an AI."
+          content: "You are an expert at humanizing AI-generated text. Rewrite the given text to sound more natural, human-like, and conversational while maintaining the original meaning and key information. Make it sound like it was written by a human, not an AI. Use natural language patterns, varied sentence structures, and human-like expressions."
         },
         {
           role: "user",
           content: text
         }
       ],
-      temperature: 0.7,
-      max_tokens: 2000,
+      temperature: 0.8,
+      max_tokens: 3000,
     });
 
     const humanizedText = completion.choices[0]?.message?.content || '';
