@@ -67,36 +67,87 @@ export async function POST(req: NextRequest) {
           timestamp_granularities: ['segment']
         });
       } else if (audioSource) {
-        // For URL-based audio, we'd need to download it first
-        // For now, we'll use a demo approach
-        transcriptionResult = {
-          text: `This is a transcription of your audio content using OpenAI Whisper.
+        // For URL-based audio (like YouTube), we'll provide a demo transcription
+        // In production, you'd download the audio first, then transcribe
+        const isYouTube = audioSource.includes('youtube.com') || audioSource.includes('youtu.be');
+        
+        if (isYouTube) {
+          transcriptionResult = {
+            text: `YouTube Video Transcription Demo
 
-The audio has been processed and converted to text with high accuracy. OpenAI's Whisper model provides excellent transcription quality with support for multiple languages and accents.
+This is a demonstration of what the transcription would look like for your YouTube video. In a production environment, this would be the actual transcribed content from the video.
 
-Key features of this transcription:
-- High accuracy speech-to-text conversion
+Key features of YouTube transcription:
+- Automatic speech recognition from video audio
+- Speaker identification and labeling
+- Timestamp markers for each segment
+- High accuracy text conversion
 - Support for multiple languages
-- Automatic punctuation and formatting
-- Timestamp information for each segment
-- Speaker detection capabilities
 
-This transcription was generated using OpenAI's Whisper model, which is one of the most advanced speech recognition systems available.`,
-          segments: [
-            {
-              id: 0,
-              seek: 0,
-              start: 0.0,
-              end: 5.0,
-              text: "This is a transcription of your audio content using OpenAI Whisper.",
-              tokens: [1, 2, 3, 4, 5],
-              temperature: 0.0,
-              avg_logprob: -0.5,
-              compression_ratio: 1.2,
-              no_speech_prob: 0.1
-            }
-          ]
-        };
+The transcription process would:
+1. Extract audio from the YouTube video
+2. Process the audio through OpenAI Whisper
+3. Generate accurate text with timestamps
+4. Identify different speakers if present
+
+This demo shows the interface and capabilities. For real transcription, you would need to implement YouTube audio extraction using tools like yt-dlp or youtube-dl.`,
+            segments: [
+              {
+                id: 0,
+                seek: 0,
+                start: 0.0,
+                end: 10.0,
+                text: "YouTube Video Transcription Demo",
+                tokens: [1, 2, 3, 4, 5],
+                temperature: 0.0,
+                avg_logprob: -0.5,
+                compression_ratio: 1.2,
+                no_speech_prob: 0.1
+              },
+              {
+                id: 1,
+                seek: 10,
+                start: 10.0,
+                end: 20.0,
+                text: "This is a demonstration of what the transcription would look like for your YouTube video.",
+                tokens: [6, 7, 8, 9, 10],
+                temperature: 0.0,
+                avg_logprob: -0.4,
+                compression_ratio: 1.1,
+                no_speech_prob: 0.05
+              }
+            ]
+          };
+        } else {
+          transcriptionResult = {
+            text: `Audio URL Transcription Demo
+
+This is a demonstration transcription for your audio URL. In production, this would be the actual transcribed content from your audio file.
+
+The transcription would include:
+- High-quality speech recognition
+- Automatic punctuation and formatting
+- Timestamp information
+- Speaker detection if multiple speakers are present
+- Export options for various formats
+
+This demo shows the interface and capabilities. For real transcription, the audio would be downloaded and processed through OpenAI Whisper.`,
+            segments: [
+              {
+                id: 0,
+                seek: 0,
+                start: 0.0,
+                end: 8.0,
+                text: "Audio URL Transcription Demo",
+                tokens: [1, 2, 3, 4, 5],
+                temperature: 0.0,
+                avg_logprob: -0.5,
+                compression_ratio: 1.2,
+                no_speech_prob: 0.1
+              }
+            ]
+          };
+        }
       }
 
       return NextResponse.json({ 
