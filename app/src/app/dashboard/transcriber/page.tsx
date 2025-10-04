@@ -4,14 +4,17 @@ import { useState, useRef } from 'react';
 
 export default function TranscriberPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState('');
   const [transcript, setTranscript] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [inputType, setInputType] = useState<'file' | 'url'>('file');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      setInputType('file');
     }
   };
 
@@ -20,38 +23,48 @@ export default function TranscriberPage() {
     const file = event.dataTransfer.files[0];
     if (file) {
       setSelectedFile(file);
+      setInputType('file');
     }
   };
 
+  const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setVideoUrl(event.target.value);
+    setInputType('url');
+  };
+
   const handleTranscribe = async () => {
-    if (!selectedFile) {
-      alert('Please select an audio file first');
+    if (inputType === 'file' && !selectedFile) {
+      alert('Please select an audio/video file first');
+      return;
+    }
+    
+    if (inputType === 'url' && !videoUrl.trim()) {
+      alert('Please enter a video URL first');
       return;
     }
 
     setIsLoading(true);
     try {
-      // Create FormData to upload file
-      const formData = new FormData();
-      formData.append('audio', selectedFile);
+      let audioData = null;
+      let audioUrl = null;
 
-      // Upload file first (you'll need to implement this endpoint)
-      const uploadResponse = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file');
+      if (inputType === 'file' && selectedFile) {
+        // Convert file to base64 for direct processing
+        const reader = new FileReader();
+        audioData = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(selectedFile);
+        });
+      } else if (inputType === 'url' && videoUrl) {
+        audioUrl = videoUrl;
       }
-
-      const { audioUrl } = await uploadResponse.json();
 
       // Start transcription
       const response = await fetch('/api/transcriber', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioUrl })
+        body: JSON.stringify({ audioUrl, audioData })
       });
 
       const data = await response.json();
@@ -98,45 +111,88 @@ export default function TranscriberPage() {
       <div className="mx-auto max-w-4xl px-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-4">Transcriber</h1>
-          <p className="text-slate-600">Convert audio to text with speaker detection and export to Word, PDF, or SRT.</p>
+          <p className="text-slate-600">Convert audio/video to text with speaker detection and export to Word, PDF, or SRT.</p>
         </div>
 
         <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl">
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Upload audio file
-              </label>
-              <div 
-                className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-[#1E3A8A] transition-colors cursor-pointer"
-                onDrop={handleDrop}
-                onDragOver={(e) => e.preventDefault()}
-                onClick={() => fileInputRef.current?.click()}
+            {/* Input Type Toggle */}
+            <div className="flex gap-4 mb-6">
+              <button
+                onClick={() => setInputType('file')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  inputType === 'file' 
+                    ? 'bg-[#1E3A8A] text-white' 
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
               >
-                <div className="flex flex-col items-center">
-                  <svg className="w-12 h-12 text-slate-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <p className="text-slate-600 mb-2">Drop your audio file here, or click to browse</p>
-                  <p className="text-sm text-slate-500">Supports MP3, WAV, M4A, and more</p>
-                </div>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+                Upload File
+              </button>
+              <button
+                onClick={() => setInputType('url')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  inputType === 'url' 
+                    ? 'bg-[#1E3A8A] text-white' 
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Video URL
+              </button>
             </div>
+
+            {inputType === 'file' ? (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Upload audio/video file
+                </label>
+                <div 
+                  className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-[#1E3A8A] transition-colors cursor-pointer"
+                  onDrop={handleDrop}
+                  onDragOver={(e) => e.preventDefault()}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div className="flex flex-col items-center">
+                    <svg className="w-12 h-12 text-slate-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p className="text-slate-600 mb-2">Drop your audio/video file here, or click to browse</p>
+                    <p className="text-sm text-slate-500">Supports MP3, WAV, M4A, MP4, AVI, and more</p>
+                  </div>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="audio/*,video/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Video URL
+                </label>
+                <input
+                  type="url"
+                  value={videoUrl}
+                  onChange={handleUrlChange}
+                  placeholder="https://youtube.com/watch?v=... or direct video URL"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-transparent"
+                />
+                <p className="text-sm text-slate-500 mt-2">Supports YouTube, Vimeo, and direct video URLs</p>
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <div className="text-sm text-slate-500">
-                File: {selectedFile ? selectedFile.name : 'No file selected'}
+                {inputType === 'file' 
+                  ? `File: ${selectedFile ? selectedFile.name : 'No file selected'}`
+                  : `URL: ${videoUrl ? 'Entered' : 'No URL entered'}`
+                }
               </div>
               <button 
                 onClick={handleTranscribe}
-                disabled={!selectedFile || isLoading}
+                disabled={isLoading || (inputType === 'file' ? !selectedFile : !videoUrl.trim())}
                 className="px-6 py-3 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#1E40AF] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Transcribing...' : 'Start Transcription'}
