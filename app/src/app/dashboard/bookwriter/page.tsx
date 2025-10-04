@@ -38,7 +38,7 @@ export default function BookWriterPage() {
       } else {
         alert(data.error || 'Failed to generate chapter plan');
       }
-    } catch (error) {
+    } catch {
       alert('Failed to generate chapter plan. Please try again.');
     } finally {
       setIsGeneratingPlan(false);
@@ -70,7 +70,7 @@ export default function BookWriterPage() {
       } else {
         alert(data.error || 'Failed to get AI assistance');
       }
-    } catch (error) {
+    } catch {
       alert('Failed to get AI assistance. Please try again.');
     } finally {
       setIsAiAssisting(false);

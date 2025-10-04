@@ -61,7 +61,7 @@ export default function TranscriberPage() {
       } else {
         alert(data.error || 'Failed to transcribe audio');
       }
-    } catch (error) {
+    } catch {
       alert('Failed to transcribe audio. Please try again.');
     } finally {
       setIsLoading(false);
@@ -76,7 +76,7 @@ export default function TranscriberPage() {
   const downloadTranscript = (format: 'txt' | 'srt') => {
     let content = transcript;
     let filename = 'transcript.txt';
-    let mimeType = 'text/plain';
+    const mimeType = 'text/plain';
 
     if (format === 'srt') {
       // Simple SRT format - you might want to enhance this with timestamps

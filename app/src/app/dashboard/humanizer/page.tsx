@@ -28,7 +28,7 @@ export default function HumanizerPage() {
       } else {
         alert(data.error || 'Failed to humanize text');
       }
-    } catch (error) {
+    } catch {
       alert('Failed to humanize text. Please try again.');
     } finally {
       setIsLoading(false);
