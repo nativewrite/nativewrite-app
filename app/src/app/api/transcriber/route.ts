@@ -11,21 +11,24 @@ export async function POST(req: NextRequest) {
 
     let audioSource = audioUrl;
     
-    // Handle YouTube URLs
+    // Handle YouTube URLs - Download audio first
     if (isYouTube && audioUrl) {
       try {
-        const youtubeResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/youtube`, {
+        // Download YouTube audio
+        const downloadResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/youtube/download`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: audioUrl })
         });
         
-        if (youtubeResponse.ok) {
-          const youtubeData = await youtubeResponse.json();
-          audioSource = youtubeData.audioUrl;
+        if (downloadResponse.ok) {
+          const downloadData = await downloadResponse.json();
+          // Use the downloaded audio data for transcription
+          audioData = downloadData.audioData;
+          audioSource = null; // We'll use audioData instead
         } else {
           return NextResponse.json({ 
-            error: 'Failed to process YouTube URL' 
+            error: 'Failed to download YouTube audio' 
           }, { status: 500 });
         }
       } catch {
