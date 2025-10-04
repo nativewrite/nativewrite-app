@@ -101,9 +101,9 @@ This transcription was generated using OpenAI's Whisper model, which is one of t
 
       return NextResponse.json({ 
         success: true, 
-        text: transcriptionResult.text,
-        segments: transcriptionResult.segments || [],
-        speakers: transcriptionResult.segments?.map((segment, index) => ({
+        text: transcriptionResult?.text || 'No transcription available',
+        segments: transcriptionResult?.segments || [],
+        speakers: transcriptionResult?.segments?.map((segment, index) => ({
           speaker: `Speaker ${index + 1}`,
           text: segment.text,
           start: segment.start,
