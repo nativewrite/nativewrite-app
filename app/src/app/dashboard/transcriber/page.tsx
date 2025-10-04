@@ -47,6 +47,7 @@ export default function TranscriberPage() {
     try {
       let audioData = null;
       let audioUrl = null;
+      let isYouTube = false;
 
       if (inputType === 'file' && selectedFile) {
         // Convert file to base64 for direct processing
@@ -58,13 +59,15 @@ export default function TranscriberPage() {
         });
       } else if (inputType === 'url' && videoUrl) {
         audioUrl = videoUrl;
+        // Check if it's a YouTube URL
+        isYouTube = videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be');
       }
 
       // Start transcription
       const response = await fetch('/api/transcriber', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioUrl, audioData })
+        body: JSON.stringify({ audioUrl, audioData, isYouTube })
       });
 
       const data = await response.json();
