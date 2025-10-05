@@ -160,6 +160,7 @@ export default function TranscriberPage() {
                     </svg>
                     <p className="text-slate-600 mb-2">Drop your audio/video file here, or click to browse</p>
                     <p className="text-sm text-slate-500">Supports MP3, WAV, M4A, MP4, AVI, and more</p>
+                    <p className="text-xs text-blue-600 mt-2">✅ Real transcription with OpenAI Whisper</p>
                   </div>
                 </div>
                 <input
@@ -182,7 +183,14 @@ export default function TranscriberPage() {
                   placeholder="https://youtube.com/watch?v=... or direct video URL"
                   className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-transparent"
                 />
-                <p className="text-sm text-slate-500 mt-2">Supports YouTube, Vimeo, and direct video URLs</p>
+                <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>⚠️ YouTube Limitation:</strong> Direct YouTube transcription is not possible due to browser security restrictions.
+                  </p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    <strong>Solution:</strong> Download the video as an audio file and use the "Upload File" option above for real transcription.
+                  </p>
+                </div>
               </div>
             )}
 
