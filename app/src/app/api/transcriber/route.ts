@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
         // Extract video ID for demo purposes
         const videoIdMatch = audioUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
         const videoId = videoIdMatch ? videoIdMatch[1] : 'unknown';
+        console.log('Processing YouTube video:', videoId);
         
         // Set up for demo transcription - we'll handle this in the transcription logic
         audioSource = null;
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
         try {
           // OpenAI Whisper can sometimes handle direct URLs
           transcriptionResult = await openai.audio.transcriptions.create({
-            file: audioSource as any, // Cast to any to bypass type checking
+            file: audioSource as string, // YouTube URL as string
             model: 'whisper-1',
             response_format: 'verbose_json',
             timestamp_granularities: ['segment']

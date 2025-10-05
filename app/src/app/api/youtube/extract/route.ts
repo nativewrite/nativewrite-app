@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     // Try to get a direct audio stream URL (this is a simplified approach)
     // In reality, you'd need a service like youtube-dl-api or similar
     const directAudioUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    console.log('Extracting audio URL for video:', videoId);
 
     return NextResponse.json({ 
       success: true, 

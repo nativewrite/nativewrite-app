@@ -188,7 +188,7 @@ export default function TranscriberPage() {
                     <strong>⚠️ YouTube Limitation:</strong> Direct YouTube transcription is not possible due to browser security restrictions.
                   </p>
                   <p className="text-xs text-yellow-700 mt-1">
-                    <strong>Solution:</strong> Download the video as an audio file and use the "Upload File" option above for real transcription.
+                    <strong>Solution:</strong> Download the video as an audio file and use the &quot;Upload File&quot; option above for real transcription.
                   </p>
                 </div>
               </div>
