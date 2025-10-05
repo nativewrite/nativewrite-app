@@ -96,7 +96,7 @@ function extractVideoId(url: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { audioUrl, audioData, isYouTube } = await req.json();
+    const { audioUrl, audioData } = await req.json();
 
     if (!audioUrl && !audioData) {
       return NextResponse.json({ error: 'Audio URL or data is required' }, { status: 400 });
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
         try {
           // Try to transcribe the audio stream URL
           transcriptionResult = await openai.audio.transcriptions.create({
-            file: audioSource as any, // Audio stream URL
+            file: audioSource as string, // Audio stream URL
             model: 'whisper-1',
             response_format: 'verbose_json',
             timestamp_granularities: ['segment']
