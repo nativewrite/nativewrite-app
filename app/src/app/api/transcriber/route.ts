@@ -158,11 +158,20 @@ export async function POST(req: NextRequest) {
           timestamp_granularities: ['segment']
         });
       } else if (audioSource) {
-        // For URL-based audio/video, try to transcribe directly
+        // For URL-based audio/video, we need to download and convert to File object
         try {
-          // Try to transcribe the audio stream URL
+          // Download the audio from the URL
+          const audioResponse = await fetch(audioSource);
+          if (!audioResponse.ok) {
+            throw new Error(`Failed to fetch audio: ${audioResponse.status}`);
+          }
+          
+          const audioBuffer = await audioResponse.arrayBuffer();
+          const audioFile = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
+          
+          // Transcribe the downloaded audio file
           transcriptionResult = await openai.audio.transcriptions.create({
-            file: audioSource as string, // Audio stream URL
+            file: audioFile,
             model: 'whisper-1',
             response_format: 'verbose_json',
             timestamp_granularities: ['segment']
@@ -170,7 +179,7 @@ export async function POST(req: NextRequest) {
         } catch (openaiError) {
           console.error('OpenAI transcription failed for URL:', openaiError);
           
-          // Fallback: Try with a different approach or provide helpful message
+          // Fallback: Provide helpful message about URL processing
           transcriptionResult = {
             text: `Video URL Transcription
 
