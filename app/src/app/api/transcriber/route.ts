@@ -64,21 +64,9 @@ export async function POST(req: NextRequest) {
           timestamp_granularities: ['segment']
         });
       } else if (isYouTube) {
-        // For YouTube URLs, try to use the URL directly with OpenAI Whisper
-        try {
-          // OpenAI Whisper can sometimes handle direct URLs
-          transcriptionResult = await openai.audio.transcriptions.create({
-            file: audioSource as string, // YouTube URL as string
-            model: 'whisper-1',
-            response_format: 'verbose_json',
-            timestamp_granularities: ['segment']
-          });
-        } catch (whisperError) {
-          console.error('Direct YouTube transcription failed:', whisperError);
-          
-          // Fallback: Use a more realistic demo that explains the limitation
-          transcriptionResult = {
-            text: `YouTube Video Transcription
+        // For YouTube URLs, explain the limitation and provide solution
+        transcriptionResult = {
+          text: `YouTube Video Transcription
 
 Unfortunately, direct YouTube URL transcription is not possible in this web environment due to CORS restrictions and YouTube's security policies.
 
@@ -100,22 +88,21 @@ This limitation exists because:
 - Web apps cannot install tools like yt-dlp
 
 Please use the file upload option for real transcription results.`,
-            segments: [
-              {
-                id: 0,
-                seek: 0,
-                start: 0.0,
-                end: 5.0,
-                text: "YouTube Video Transcription",
-                tokens: [1, 2, 3, 4, 5],
-                temperature: 0.0,
-                avg_logprob: -0.5,
-                compression_ratio: 1.2,
-                no_speech_prob: 0.1
-              }
-            ]
-          };
-        }
+          segments: [
+            {
+              id: 0,
+              seek: 0,
+              start: 0.0,
+              end: 5.0,
+              text: "YouTube Video Transcription",
+              tokens: [1, 2, 3, 4, 5],
+              temperature: 0.0,
+              avg_logprob: -0.5,
+              compression_ratio: 1.2,
+              no_speech_prob: 0.1
+            }
+          ]
+        };
       } else if (audioSource) {
         // For other URL-based audio, provide a demo transcription
         transcriptionResult = {
