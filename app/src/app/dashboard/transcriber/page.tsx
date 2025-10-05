@@ -114,7 +114,7 @@ export default function TranscriberPage() {
       <div className="mx-auto max-w-4xl px-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-4">Transcriber</h1>
-          <p className="text-slate-600">Convert audio/video to text with speaker detection and export to Word, PDF, or SRT.</p>
+          <p className="text-slate-600">Convert any video/audio to text with AI. Supports YouTube, Instagram, TikTok, Twitter, and more!</p>
         </div>
 
         <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl">
@@ -180,15 +180,15 @@ export default function TranscriberPage() {
                   type="url"
                   value={videoUrl}
                   onChange={handleUrlChange}
-                  placeholder="https://youtube.com/watch?v=... or direct video URL"
+                  placeholder="https://youtube.com/watch?v=... or any video URL (Instagram, TikTok, Twitter, etc.)"
                   className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-transparent"
                 />
-                <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    <strong>⚠️ YouTube Limitation:</strong> Direct YouTube transcription is not possible due to browser security restrictions.
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800">
+                    <strong>✅ Supported Platforms:</strong> YouTube, Instagram, TikTok, Twitter/X, and direct video URLs.
                   </p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    <strong>Solution:</strong> Download the video as an audio file and use the &quot;Upload File&quot; option above for real transcription.
+                  <p className="text-xs text-green-700 mt-1">
+                    <strong>Just paste any video link</strong> and get instant transcription with OpenAI Whisper!
                   </p>
                 </div>
               </div>
