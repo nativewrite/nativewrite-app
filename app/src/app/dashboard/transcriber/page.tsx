@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from 'react';
+import VideoURLUploader from '@/components/VideoURLUploader';
 
 export default function TranscriberPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -172,26 +173,7 @@ export default function TranscriberPage() {
                 />
               </div>
             ) : (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Video URL
-                </label>
-                <input
-                  type="url"
-                  value={videoUrl}
-                  onChange={handleUrlChange}
-                  placeholder="https://youtube.com/watch?v=... or any video URL (Instagram, TikTok, Twitter, etc.)"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-transparent"
-                />
-                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-800">
-                    <strong>✅ Supported Platforms:</strong> YouTube, Instagram, TikTok, Twitter/X, and direct video URLs.
-                  </p>
-                  <p className="text-xs text-green-700 mt-1">
-                    <strong>Just paste any video link</strong> and get instant transcription with OpenAI Whisper!
-                  </p>
-                </div>
-              </div>
+              <VideoURLUploader onTranscript={setTranscript} />
             )}
 
             <div className="flex items-center justify-between">
