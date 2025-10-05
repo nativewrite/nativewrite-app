@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { exec } from 'child_process';
-import util from 'util';
 import axios from 'axios';
 import FormData from 'form-data';
-
-const execPromise = util.promisify(exec);
+import ytdl from 'ytdl-core';
 
 export async function POST(req: Request) {
   try {
@@ -23,21 +20,29 @@ export async function POST(req: Request) {
         error: 'Unsupported platform. Please upload the video manually instead.',
       }, { status: 400 });
     }
+    
+    // Only YouTube is supported in Vercel serverless with ytdl-core
+    const isYouTube = videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be');
+    if (!isYouTube) {
+      return NextResponse.json({
+        error: "This platform blocks direct downloads. Please upload your video manually.",
+      }, { status: 400 });
+    }
 
     const audioPath = path.join('/tmp', `audio-${Date.now()}.mp3`);
-
-    // Download audio using yt-dlp
-    const downloadCmd = `yt-dlp -x --audio-format mp3 -o "${audioPath}" "${videoUrl}"`;
+    
+    // Download audio using ytdl-core
     try {
-      await execPromise(downloadCmd);
-    } catch (dlErr: unknown) {
-      const err = dlErr as { stderr?: string };
-      if (err?.stderr && err.stderr.includes('Sign in')) {
-        return NextResponse.json({
-          error: "This platform (Instagram or TikTok) blocks direct downloads. Please upload your video manually.",
-        }, { status: 400 });
-      }
-      return NextResponse.json({ error: 'Failed to download audio for transcription.' }, { status: 500 });
+      await new Promise<void>((resolve, reject) => {
+        const stream = ytdl(videoUrl, { quality: 'highestaudio', filter: 'audioonly' });
+        const writeStream = fs.createWriteStream(audioPath);
+        stream.pipe(writeStream);
+        writeStream.on('finish', () => resolve());
+        stream.on('error', reject);
+        writeStream.on('error', reject);
+      });
+    } catch {
+      return NextResponse.json({ error: 'Failed to fetch audio from YouTube.' }, { status: 500 });
     }
 
     // Send to OpenAI Whisper API
