@@ -96,10 +96,30 @@ function extractVideoId(url: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { audioUrl, audioData } = await req.json();
+    // Check if request is FormData (file upload) or JSON
+    const contentType = req.headers.get('content-type') || '';
+    
+    let audioUrl: string | null = null;
+    let audioData: string | null = null;
+    let audioFile: File | null = null;
 
-    if (!audioUrl && !audioData) {
-      return NextResponse.json({ error: 'Audio URL or data is required' }, { status: 400 });
+    if (contentType.includes('multipart/form-data')) {
+      // Handle FormData (file upload from WaveformRecorder)
+      const formData = await req.formData();
+      audioFile = formData.get('audio') as File;
+      
+      if (!audioFile) {
+        return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
+      }
+    } else {
+      // Handle JSON (URL or base64 data)
+      const body = await req.json();
+      audioUrl = body.audioUrl;
+      audioData = body.audioData;
+    }
+
+    if (!audioUrl && !audioData && !audioFile) {
+      return NextResponse.json({ error: 'Audio URL, data, or file is required' }, { status: 400 });
     }
 
     let audioSource = audioUrl;
@@ -143,7 +163,15 @@ export async function POST(req: NextRequest) {
     try {
       let transcriptionResult;
       
-      if (audioData) {
+      if (audioFile) {
+        // Handle uploaded file directly
+        transcriptionResult = await openai.audio.transcriptions.create({
+          file: audioFile,
+          model: 'whisper-1',
+          response_format: 'verbose_json',
+          timestamp_granularities: ['segment']
+        });
+      } else if (audioData) {
         // Convert base64 to buffer for OpenAI
         const base64Data = audioData.split(',')[1];
         const audioBuffer = Buffer.from(base64Data, 'base64');
