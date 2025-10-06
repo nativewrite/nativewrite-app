@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from 'react';
+import WaveformRecorder from '@/components/WaveformRecorder';
 import VideoURLUploader from '@/components/VideoURLUploader';
 
 export default function TranscriberPage() {
@@ -8,7 +9,7 @@ export default function TranscriberPage() {
   const [videoUrl, setVideoUrl] = useState('');
   const [transcript, setTranscript] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [inputType, setInputType] = useState<'file' | 'url'>('file');
+  const [inputType, setInputType] = useState<'file' | 'url' | 'record'>('file');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,6 +143,16 @@ export default function TranscriberPage() {
               >
                 Video URL
               </button>
+              <button
+                onClick={() => setInputType('record')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  inputType === 'record' 
+                    ? 'bg-[#1E3A8A] text-white' 
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                🎙 Record & Scribe
+              </button>
             </div>
 
             {inputType === 'file' ? (
@@ -172,8 +183,10 @@ export default function TranscriberPage() {
                   className="hidden"
                 />
               </div>
-            ) : (
+            ) : inputType === 'url' ? (
               <VideoURLUploader onTranscript={setTranscript} />
+            ) : (
+              <WaveformRecorder onTranscript={setTranscript} />
             )}
 
             <div className="flex items-center justify-between">
