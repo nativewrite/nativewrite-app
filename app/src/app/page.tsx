@@ -29,7 +29,7 @@ export default function HomePage() {
       {/* Features Preview */}
       <section className="px-6 pb-20">
         <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* Humanizer Card */}
             <Link href="/dashboard/humanizer" className="group relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -58,6 +58,23 @@ export default function HomePage() {
                 <h3 className="text-2xl font-bold text-slate-900 mb-4">Transcriber</h3>
                 <p className="text-slate-600 leading-relaxed">
                   Convert audio to text with speaker detection and export to Word, PDF, or SRT.
+                </p>
+              </div>
+            </Link>
+
+            {/* Rephrase Card */}
+            <Link href="/dashboard/rephrase" className="group relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="relative">
+                <div className="w-12 h-12 bg-[#1E3A8A] rounded-xl flex items-center justify-center mb-6">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 20h9" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 4H8a2 2 0 00-2 2v12a2 2 0 002 2h6l4-4V6a2 2 0 00-2-2z" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-4">Rephrase</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  Rewrite your text in different tones: standard, professional, creative, or your style.
                 </p>
               </div>
             </Link>
