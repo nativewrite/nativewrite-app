@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 async function getSharedTranscription(publicId: string) {
@@ -24,7 +24,7 @@ async function getSharedTranscription(publicId: string) {
 }
 
 export default async function SharedPage({ params }: PageProps) {
-  const { id } = params;
+  const { id } = await params;
   const transcription = await getSharedTranscription(id);
 
   if (!transcription) {
