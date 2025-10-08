@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useFocus } from "@/context/FocusContext";
 
 export default function AudioManager() {
   const [enabled, setEnabled] = useState(false);
   const ambientRef = useRef<HTMLAudioElement | null>(null);
+  const { enabled: focusEnabled } = useFocus();
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem("nativewrite-sound") : null;
@@ -13,7 +15,7 @@ export default function AudioManager() {
 
   useEffect(() => {
     if (!ambientRef.current) return;
-    ambientRef.current.volume = 0.08;
+    ambientRef.current.volume = focusEnabled ? 0.12 : 0.08;
     if (enabled) {
       ambientRef.current.play().catch(() => {});
     } else {

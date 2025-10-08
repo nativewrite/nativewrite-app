@@ -3,6 +3,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AmbientBackground from "@/components/ui/AmbientBackground";
 import AudioManager from "@/components/ui/AudioManager";
+import { FocusProvider } from "@/context/FocusContext";
+import FocusToggle from "@/components/ui/FocusToggle";
+import FocusEditor from "@/components/ui/FocusEditor";
+import { motion } from "framer-motion";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,9 +33,19 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased relative min-h-screen text-gray-900 overflow-x-hidden`}
       >
-        <AmbientBackground />
-        <AudioManager />
-        {children}
+        <FocusProvider>
+          <AmbientBackground />
+          <AudioManager />
+          <FocusToggle />
+          <motion.div
+            animate={{
+              filter: "none",
+            }}
+          >
+            {children}
+          </motion.div>
+          <FocusEditor />
+        </FocusProvider>
       </body>
     </html>
   );
