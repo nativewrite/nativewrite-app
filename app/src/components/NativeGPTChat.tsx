@@ -87,6 +87,66 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
     await sendMessage(fullPrompt);
   };
 
+  const handleExportPDF = async () => {
+    try {
+      toast.loading("Generating PDF...");
+      
+      const response = await fetch("/api/export/pdf/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "NativeWrite Summary Sheet",
+          transcriptText,
+          chatMessages: messages,
+        }),
+      });
+
+      toast.dismiss();
+
+      if (!response.ok) {
+        throw new Error("Failed to generate PDF");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `NativeWrite_Summary_${Date.now()}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("PDF downloaded successfully! 🧾");
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error("Failed to generate PDF");
+    }
+  };
+
+  const handleSendToBookWriter = () => {
+    // Find the latest AI response
+    const latestAIResponse = messages
+      .slice()
+      .reverse()
+      .find(m => m.role === "assistant")?.content;
+    
+    if (!latestAIResponse) {
+      toast.error("No AI response found to send");
+      return;
+    }
+
+    // Save to localStorage for Book Writer to pick up
+    const existingDraft = localStorage.getItem("nativewrite_bookdraft") || "";
+    const newDraft = existingDraft 
+      ? `${existingDraft}\n\n---\n\n${latestAIResponse}` 
+      : latestAIResponse;
+    
+    localStorage.setItem("nativewrite_bookdraft", newDraft);
+    toast.success("Sent to Book Writer! ✍️");
+
+    // Open Book Writer in new tab
+    window.open("/dashboard/bookwriter", "_blank");
+  };
+
   const smartCommands = [
     { label: "🧩 Summarize", prompt: "Summarize this transcript clearly and concisely, highlighting the main points." },
     { label: "✍️ Rewrite", prompt: "Rewrite this text to sound more professional, natural, and engaging." },
@@ -200,7 +260,32 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
             </div>
 
             {/* Input Area */}
-            <div className="p-4 border-t border-white/10 bg-white/5">
+            <div className="p-4 border-t border-white/10 bg-white/5 space-y-3">
+              {/* Action Buttons */}
+              {messages.length > 2 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex gap-2"
+                >
+                  <button
+                    onClick={handleExportPDF}
+                    disabled={loading}
+                    className="flex-1 px-3 py-2 bg-white/10 hover:bg-white/20 text-sm rounded-lg border border-white/10 text-white transition-all duration-200 disabled:opacity-50 hover:shadow-[0_0_15px_rgba(30,58,138,0.3)]"
+                  >
+                    🧾 Export PDF
+                  </button>
+                  <button
+                    onClick={handleSendToBookWriter}
+                    disabled={loading}
+                    className="flex-1 px-3 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-sm rounded-lg text-white transition-all duration-200 disabled:opacity-50 shadow-lg hover:shadow-[0_0_20px_rgba(0,180,216,0.4)]"
+                  >
+                    ✍️ Send to Book Writer
+                  </button>
+                </motion.div>
+              )}
+
+              {/* Input Box */}
               <div className="flex gap-2">
                 <input
                   type="text"
