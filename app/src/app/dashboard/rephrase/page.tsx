@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 
 export default function RephrasePage() {
   const [inputText, setInputText] = useState('');
@@ -64,7 +65,12 @@ export default function RephrasePage() {
         </div>
 
         {/* Main Container */}
-        <div className="rounded-2xl backdrop-blur-lg bg-white/70 border border-white/20 shadow-xl p-8">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+          className="rounded-2xl backdrop-blur-lg bg-white/70 border border-white/20 shadow-xl p-8"
+        >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Input Section */}
             <div className="space-y-4">
@@ -108,8 +114,9 @@ export default function RephrasePage() {
               <button
                 onClick={handleRephrase}
                 disabled={isLoading || !inputText.trim()}
-                className="w-full py-4 rounded-lg bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white font-medium shadow-lg hover:shadow-xl hover:shadow-[0_0_20px_rgba(30,58,138,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+                className="relative overflow-hidden group w-full py-4 rounded-lg bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white font-medium shadow-[0_0_8px_rgba(30,58,138,0.4)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
+                <span className="absolute inset-0 bg-gradient-to-r from-[#00B4D8]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></span>
                 {isLoading ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -128,7 +135,11 @@ export default function RephrasePage() {
                   Rephrased Result
                 </label>
                 <div className="relative">
-                  <textarea
+                  <motion.textarea
+                    key={outputText}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
                     value={outputText}
                     onChange={(e) => setOutputText(e.target.value)}
                     rows={12}

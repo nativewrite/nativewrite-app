@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
 import WaveformRecorder from '@/components/WaveformRecorder';
 import VideoURLUploader from '@/components/VideoURLUploader';
 
@@ -127,7 +128,12 @@ export default function TranscriberPage() {
           <p className="text-slate-600">Convert any video/audio to text with AI. Supports YouTube, Instagram, TikTok, Twitter, and more!</p>
         </div>
 
-        <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+          className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl"
+        >
           <div className="space-y-6">
             {/* Input Type Toggle */}
             <div className="flex gap-4 mb-6">
@@ -217,7 +223,11 @@ export default function TranscriberPage() {
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Transcript
               </label>
-              <textarea
+              <motion.textarea
+                key={transcript}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
                 rows={10}
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
@@ -278,7 +288,7 @@ export default function TranscriberPage() {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </main>
   );

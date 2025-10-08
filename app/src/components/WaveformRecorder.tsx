@@ -260,7 +260,12 @@ export default function WaveformRecorder({ onTranscript }: Props) {
 
           {recordedAudio && (
             <div className="p-4 rounded-2xl backdrop-blur-lg bg-white/70 border border-white/20 shadow-lg flex items-center justify-between transition-all">
-              <audio controls src={recordedAudio.url} className="w-3/4 drop-shadow-[0_0_6px_rgba(30,58,138,0.4)]" />
+              <div className="relative w-full mr-4">
+                <div className="relative w-full h-[60px] bg-gradient-to-r from-[#1E3A8A]/20 to-[#00B4D8]/10 rounded-xl overflow-hidden flex items-center justify-center">
+                  <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-[#1E3A8A]/20 to-transparent blur-lg"></div>
+                  <audio controls src={recordedAudio.url} className="z-10 w-3/4 filter drop-shadow-[0_0_6px_rgba(30,58,138,0.4)]" />
+                </div>
+              </div>
               <div className="flex gap-3">
                 <button
                   onClick={() => {
