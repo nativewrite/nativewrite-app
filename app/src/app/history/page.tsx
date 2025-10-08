@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "next-auth/react";
 import { toast, Toaster } from "sonner";
+import NativeGPTChat from "@/components/NativeGPTChat";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -478,6 +479,14 @@ export default function HistoryPage() {
           }
         }
       `}</style>
+
+      {/* NativeGPT Chat Assistant - Shows for logged-in users with transcriptions */}
+      {session?.data && items.length > 0 && (
+        <NativeGPTChat
+          transcriptText={filteredItems[0]?.transcript_text}
+          transcriptionId={filteredItems[0]?.id}
+        />
+      )}
     </main>
   );
 }

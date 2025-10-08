@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import WaveformRecorder from '@/components/WaveformRecorder';
 import VideoURLUploader from '@/components/VideoURLUploader';
 import LanguageSelectModal from '@/components/ui/LanguageSelectModal';
+import NativeGPTChat from '@/components/NativeGPTChat';
 
 export default function TranscriberPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -456,6 +457,14 @@ export default function TranscriberPage() {
         }}
         title="🌍 Choose Translation Language"
       />
+
+      {/* NativeGPT Chat Assistant */}
+      {transcript && (
+        <NativeGPTChat
+          transcriptText={transcript}
+          transcriptionId={transcriptionId || undefined}
+        />
+      )}
     </main>
   );
 }
