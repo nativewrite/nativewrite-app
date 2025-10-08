@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
-import { motion } from "framer-motion";
+import Link from "next/link";
 
 interface PageProps {
   params: {
@@ -137,12 +137,12 @@ export default async function SharedPage({ params }: PageProps) {
 
         {/* Footer CTA */}
         <div className="mt-8 text-center">
-          <a
+          <Link
             href="/"
             className="inline-block px-6 py-3 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white rounded-lg hover:scale-105 transition-all duration-200 shadow-lg"
           >
             Try NativeWrite →
-          </a>
+          </Link>
         </div>
       </div>
     </main>
