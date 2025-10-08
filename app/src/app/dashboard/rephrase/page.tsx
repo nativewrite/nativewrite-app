@@ -175,7 +175,7 @@ export default function RephrasePage() {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Tips Section */}
         <div className="mt-8 rounded-xl backdrop-blur-lg bg-white/50 border border-white/20 shadow-md p-6">
