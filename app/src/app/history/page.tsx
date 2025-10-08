@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "next-auth/react";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 interface Transcription {
   id: string;
   created_at: string;
@@ -19,7 +22,7 @@ interface Transcription {
 }
 
 export default function HistoryPage() {
-  const { data: session } = useSession();
+  const session = useSession();
   const [items, setItems] = useState<Transcription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'upload' | 'record' | 'url'>('all');
@@ -30,7 +33,7 @@ export default function HistoryPage() {
   }, [session]);
 
   const loadHistory = async () => {
-    if (!session?.user?.email) {
+    if (!session?.data?.user?.email) {
       setIsLoading(false);
       return;
     }
@@ -40,7 +43,7 @@ export default function HistoryPage() {
       const { data, error } = await supabase
         .from("transcriptions")
         .select("*")
-        .eq('user_id', session.user.email)
+        .eq('user_id', session.data.user.email)
         .order("created_at", { ascending: false });
 
       if (!error && data) {
@@ -127,7 +130,7 @@ export default function HistoryPage() {
     ? items 
     : items.filter(item => item.source_type === filter);
 
-  if (!session) {
+  if (!session || !session.data) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-[#0f172a] to-[#1e293b] pt-20 pb-20">
         <div className="mx-auto max-w-6xl px-6 text-center">
