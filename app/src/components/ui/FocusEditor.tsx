@@ -4,6 +4,7 @@ import { useFocus } from "@/context/FocusContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { playSound } from "@/lib/sound";
+import ProductivityHUD from "@/components/ui/ProductivityHUD";
 
 export default function FocusEditor() {
   const { enabled } = useFocus();
@@ -28,6 +29,7 @@ export default function FocusEditor() {
               playSound("typing.mp3", 0.1);
             }}
           />
+          <ProductivityHUD text={text} />
         </motion.div>
       )}
     </AnimatePresence>
