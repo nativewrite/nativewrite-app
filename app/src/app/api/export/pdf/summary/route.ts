@@ -153,13 +153,14 @@ export async function POST(request: NextRequest) {
 
     // Serialize to bytes
     const pdfBytes = await pdfDoc.save();
+    const pdfBuffer = Buffer.from(pdfBytes);
 
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(pdfBuffer, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="NativeWrite_Summary_${Date.now()}.pdf"`,
-        "Content-Length": pdfBytes.length.toString(),
+        "Content-Length": pdfBuffer.length.toString(),
       },
     });
 
