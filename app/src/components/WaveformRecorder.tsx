@@ -12,6 +12,7 @@ export default function WaveformRecorder({ onTranscript }: Props) {
   const [transcript, setTranscript] = useState('');
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [recordedAudio, setRecordedAudio] = useState<{ blob: Blob; url: string } | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -124,6 +125,8 @@ export default function WaveformRecorder({ onTranscript }: Props) {
 
     // Process the audio
     const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+    const url = URL.createObjectURL(audioBlob);
+    setRecordedAudio({ blob: audioBlob, url });
     await transcribeAudio(audioBlob);
   };
 
@@ -249,9 +252,39 @@ export default function WaveformRecorder({ onTranscript }: Props) {
 
       {/* Live Transcript Preview */}
       {transcript && (
-        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-          <div className="text-sm font-medium text-slate-700 mb-2">Live Transcript:</div>
-          <div className="text-slate-600 whitespace-pre-wrap">{transcript}</div>
+        <div className="space-y-4">
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="text-sm font-medium text-slate-700 mb-2">Live Transcript:</div>
+            <div className="text-slate-600 whitespace-pre-wrap">{transcript}</div>
+          </div>
+
+          {recordedAudio && (
+            <div className="p-4 rounded-2xl backdrop-blur-lg bg-white/70 border border-white/20 shadow-lg flex items-center justify-between transition-all">
+              <audio controls src={recordedAudio.url} className="w-3/4 drop-shadow-[0_0_6px_rgba(30,58,138,0.4)]" />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    const a = document.createElement('a');
+                    a.href = recordedAudio.url;
+                    a.download = `nativewrite_recording_${new Date().toISOString()}.webm`;
+                    a.click();
+                  }}
+                  className="px-4 py-2 rounded-lg bg-[#1E3A8A] text-white hover:shadow-[0_0_10px_rgba(30,58,138,0.3)] transition"
+                >
+                  ⬇️ Download
+                </button>
+                <button
+                  onClick={() => {
+                    URL.revokeObjectURL(recordedAudio.url);
+                    setRecordedAudio(null);
+                  }}
+                  className="px-4 py-2 rounded-lg text-red-600 hover:bg-red-100 transition"
+                >
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
