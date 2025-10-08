@@ -144,7 +144,7 @@ export default function HistoryPage() {
         setItems(items.map(i => i.id === item.id ? { ...i, is_public: makePublic, public_id: data.publicId } : i));
       } else {
         toast.success("Transcript made private 🔒");
-        setItems(items.map(i => i.id === item.id ? { ...i, is_public: makePublic, public_id: null } : i));
+        setItems(items.map(i => i.id === item.id ? { ...i, is_public: makePublic, public_id: undefined } : i));
       }
     } catch (error) {
       console.error("Error toggling share:", error);
