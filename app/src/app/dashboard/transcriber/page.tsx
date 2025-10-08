@@ -32,8 +32,9 @@ export default function TranscriberPage() {
   };
 
   const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setVideoUrl(event.target.value);
-    setInputType('url');
+    const value = event.target.value;
+    setVideoUrl(value);
+    if (value && inputType !== 'url') setInputType('url');
   };
 
   const handleTranscribe = async () => {

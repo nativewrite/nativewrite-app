@@ -24,7 +24,7 @@ export default function AudioManager() {
     if (typeof window !== 'undefined') {
       localStorage.setItem("nativewrite-sound", String(enabled));
     }
-  }, [enabled]);
+  }, [enabled, focusEnabled]);
 
   return (
     <>

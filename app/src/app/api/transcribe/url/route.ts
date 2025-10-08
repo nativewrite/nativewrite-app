@@ -63,12 +63,12 @@ export async function POST(req: Request) {
       transcript = response.data?.text || '';
     } catch {
       // Clean up before returning error
-      try { fs.existsSync(audioPath) && fs.unlinkSync(audioPath); } catch {}
+      try { if (fs.existsSync(audioPath)) { fs.unlinkSync(audioPath); } } catch {}
       return NextResponse.json({ error: 'Failed to transcribe audio. Please try again.' }, { status: 500 });
     }
 
     // Cleanup temp file
-    try { fs.existsSync(audioPath) && fs.unlinkSync(audioPath); } catch {}
+    try { if (fs.existsSync(audioPath)) { fs.unlinkSync(audioPath); } } catch {}
 
     return NextResponse.json({ success: true, transcript });
   } catch {
