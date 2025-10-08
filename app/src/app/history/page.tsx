@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "next-auth/react";
+import { toast, Toaster } from "sonner";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,10 @@ interface Transcription {
   audio_url?: string;
   tts_url?: string;
   duration_seconds?: number;
+  is_favorite?: boolean;
+  is_public?: boolean;
+  public_id?: string;
+  sync_mode?: string;
 }
 
 export default function HistoryPage() {
@@ -89,6 +94,81 @@ export default function HistoryPage() {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const toggleFavorite = async (item: Transcription) => {
+    const newStatus = !item.is_favorite;
+    
+    try {
+      const response = await fetch("/api/transcriptions/favorite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, isFavorite: newStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update favorite");
+      }
+
+      toast.success(newStatus ? "Added to Favorites ⭐️" : "Removed from Favorites");
+      setItems(items.map(i => i.id === item.id ? { ...i, is_favorite: newStatus } : i));
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      toast.error("Failed to update favorite status");
+    }
+  };
+
+  const toggleShare = async (item: Transcription) => {
+    const makePublic = !item.is_public;
+    
+    try {
+      const response = await fetch("/api/transcriptions/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, makePublic }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update share status");
+      }
+
+      if (data.publicId && makePublic) {
+        const shareUrl = `${window.location.origin}/share/${data.publicId}`;
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Share link copied to clipboard! 🔗", {
+          description: shareUrl,
+          duration: 5000,
+        });
+        setItems(items.map(i => i.id === item.id ? { ...i, is_public: makePublic, public_id: data.publicId } : i));
+      } else {
+        toast.success("Transcript made private 🔒");
+        setItems(items.map(i => i.id === item.id ? { ...i, is_public: makePublic, public_id: null } : i));
+      }
+    } catch (error) {
+      console.error("Error toggling share:", error);
+      toast.error("Failed to update share status");
+    }
+  };
+
+  const updateSyncMode = async (item: Transcription, syncMode: string) => {
+    try {
+      const { error } = await supabase
+        .from("transcriptions")
+        .update({ sync_mode: syncMode })
+        .eq("id", item.id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast.info(`Sync mode set to ${syncMode === "cloud" ? "☁️ Cloud" : "💾 Local Only"}`);
+      setItems(items.map(i => i.id === item.id ? { ...i, sync_mode: syncMode } : i));
+    } catch (error) {
+      console.error("Error updating sync mode:", error);
+      toast.error("Failed to update sync mode");
+    }
   };
 
   const getLanguageName = (code: string) => {
@@ -252,12 +332,53 @@ export default function HistoryPage() {
                         </span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => deleteItem(item.id)}
-                      className="px-3 py-2 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/40 transition-all duration-200"
-                    >
-                      🗑️ Delete
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Favorite Button */}
+                      <button
+                        onClick={() => toggleFavorite(item)}
+                        className={`text-2xl transition-all duration-200 ${
+                          item.is_favorite 
+                            ? 'text-yellow-400 fav-glow' 
+                            : 'text-gray-400 hover:text-yellow-300'
+                        }`}
+                        title={item.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                        ⭐️
+                      </button>
+                      
+                      {/* Share Button */}
+                      <button
+                        onClick={() => toggleShare(item)}
+                        className={`px-3 py-1 rounded-lg text-sm transition-all duration-200 ${
+                          item.is_public
+                            ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
+                            : 'bg-white/10 text-white/70 hover:bg-white/20'
+                        }`}
+                        title={item.is_public ? 'Make private' : 'Share publicly'}
+                      >
+                        {item.is_public ? '🔒 Unshare' : '🔗 Share'}
+                      </button>
+                      
+                      {/* Sync Mode Selector */}
+                      <select
+                        onChange={(e) => updateSyncMode(item, e.target.value)}
+                        value={item.sync_mode || 'cloud'}
+                        className="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-xs text-white/90 hover:bg-white/20 transition-all duration-200 cursor-pointer"
+                        title="Storage mode"
+                      >
+                        <option value="cloud">☁️ Cloud</option>
+                        <option value="local">💾 Local</option>
+                      </select>
+                      
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => deleteItem(item.id)}
+                        className="px-3 py-2 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/40 transition-all duration-200"
+                        title="Delete transcription"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
 
                   {/* Transcript */}
@@ -314,6 +435,19 @@ export default function HistoryPage() {
         )}
       </div>
 
+      <Toaster 
+        position="top-right"
+        theme="dark"
+        toastOptions={{
+          style: {
+            background: 'rgba(30, 58, 138, 0.8)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            color: 'white',
+          },
+        }}
+      />
+
       <style jsx>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -328,6 +462,20 @@ export default function HistoryPage() {
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Favorite star glow animation */
+        :global(.fav-glow) {
+          animation: pulse-fav 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-fav {
+          0%, 100% {
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+          }
+          50% {
+            text-shadow: 0 0 25px rgba(255, 215, 0, 0.8);
+          }
         }
       `}</style>
     </main>
