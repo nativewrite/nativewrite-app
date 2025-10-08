@@ -8,7 +8,6 @@ import LanguageSelectModal from '@/components/ui/LanguageSelectModal';
 
 export default function TranscriberPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [videoUrl, setVideoUrl] = useState('');
   const [transcript, setTranscript] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [inputType, setInputType] = useState<'file' | 'url' | 'record'>('file');
@@ -46,17 +45,10 @@ export default function TranscriberPage() {
       alert('Please select an audio/video file first');
       return;
     }
-    
-    if (inputType === 'url' && !videoUrl.trim()) {
-      alert('Please enter a video URL first');
-      return;
-    }
 
     setIsLoading(true);
     try {
       let audioData = null;
-      let audioUrl = null;
-      let isYouTube = false;
 
       if (inputType === 'file' && selectedFile) {
         // Convert file to base64 for direct processing
@@ -66,17 +58,13 @@ export default function TranscriberPage() {
           reader.onerror = reject;
           reader.readAsDataURL(selectedFile);
         });
-      } else if (inputType === 'url' && videoUrl) {
-        audioUrl = videoUrl;
-        // Check if it's a YouTube URL
-        isYouTube = videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be');
       }
 
       // Start transcription
       const response = await fetch('/api/transcriber', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioUrl, audioData, isYouTube, language: selectedLanguage })
+        body: JSON.stringify({ audioData, language: selectedLanguage, sourceType: 'upload' })
       });
 
       const data = await response.json();
@@ -304,29 +292,28 @@ export default function TranscriberPage() {
               <WaveformRecorder onTranscript={setTranscript} language={selectedLanguage} />
             )}
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-slate-500">
-                  {inputType === 'file' 
-                    ? `File: ${selectedFile ? selectedFile.name : 'No file selected'}`
-                    : `URL: ${videoUrl ? 'Entered' : 'No URL entered'}`
-                  }
+            {inputType === 'file' && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-slate-500">
+                    File: {selectedFile ? selectedFile.name : 'No file selected'}
+                  </div>
+                  <button
+                    onClick={() => setShowLanguageModal(true)}
+                    className="px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-slate-700 border border-slate-300 transition-colors text-sm"
+                  >
+                    🌐 {getLanguageName(selectedLanguage)}
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowLanguageModal(true)}
-                  className="px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-slate-700 border border-slate-300 transition-colors text-sm"
+                <button 
+                  onClick={handleTranscribe}
+                  disabled={isLoading || !selectedFile}
+                  className="px-6 py-3 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#1E40AF] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  🌐 {getLanguageName(selectedLanguage)}
+                  {isLoading ? 'Transcribing...' : 'Start Transcription'}
                 </button>
               </div>
-              <button 
-                onClick={handleTranscribe}
-                disabled={isLoading || (inputType === 'file' ? !selectedFile : !videoUrl.trim())}
-                className="px-6 py-3 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#1E40AF] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Transcribing...' : 'Start Transcription'}
-              </button>
-            </div>
+            )}
 
             <div>
               <div className="flex items-center justify-between mb-2">
