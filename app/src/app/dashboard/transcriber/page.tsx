@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import WaveformRecorder from '@/components/WaveformRecorder';
 import VideoURLUploader from '@/components/VideoURLUploader';
+import LanguageSelectModal from '@/components/ui/LanguageSelectModal';
 
 export default function TranscriberPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -12,6 +13,14 @@ export default function TranscriberPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [inputType, setInputType] = useState<'file' | 'url' | 'record'>('file');
   const [recordedAudio, setRecordedAudio] = useState<{ blob: Blob; url: string } | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('auto');
+  const [detectedLanguage, setDetectedLanguage] = useState<string>('');
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [translation, setTranslation] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [showTranslateModal, setShowTranslateModal] = useState(false);
+  const [targetLanguage, setTargetLanguage] = useState('en');
+  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,13 +81,14 @@ export default function TranscriberPage() {
       const response = await fetch('/api/transcriber', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioUrl, audioData, isYouTube })
+        body: JSON.stringify({ audioUrl, audioData, isYouTube, language: selectedLanguage })
       });
 
       const data = await response.json();
       
       if (data.success) {
         setTranscript(data.text);
+        setDetectedLanguage(data.detectedLanguage || 'auto');
 
         // After success, show audio player for uploaded files
         if (inputType === 'file' && selectedFile) {
@@ -119,6 +129,95 @@ export default function TranscriberPage() {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleTranslate = async () => {
+    if (!transcript) return;
+    
+    setIsTranslating(true);
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text: transcript, 
+          from: detectedLanguage || selectedLanguage, 
+          to: targetLanguage 
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.translation) {
+        setTranslation(data.translation);
+        setShowTranslateModal(true);
+      } else {
+        alert(data.error || 'Failed to translate text');
+      }
+    } catch (error) {
+      console.error('Translation error:', error);
+      alert('Failed to translate text. Please try again.');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const playTranslation = async () => {
+    if (!translation) return;
+    
+    setIsPlayingTTS(true);
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: translation, language: targetLanguage })
+      });
+
+      if (response.ok) {
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          setIsPlayingTTS(false);
+        };
+        
+        audio.play();
+      } else {
+        throw new Error('TTS failed');
+      }
+    } catch (error) {
+      console.error('TTS error:', error);
+      alert('Failed to generate speech. Please try again.');
+      setIsPlayingTTS(false);
+    }
+  };
+
+  const getLanguageName = (code: string) => {
+    const languages: Record<string, string> = {
+      auto: 'Auto Detect',
+      en: 'English',
+      fr: 'French',
+      es: 'Spanish',
+      de: 'German',
+      it: 'Italian',
+      pt: 'Portuguese',
+      ru: 'Russian',
+      ja: 'Japanese',
+      ko: 'Korean',
+      zh: 'Chinese',
+      ar: 'Arabic',
+      hi: 'Hindi',
+      fa: 'Persian',
+      tr: 'Turkish',
+      nl: 'Dutch',
+      sv: 'Swedish',
+      no: 'Norwegian',
+      da: 'Danish',
+      fi: 'Finnish',
+    };
+    return languages[code] || code;
   };
 
   return (
@@ -199,17 +298,25 @@ export default function TranscriberPage() {
                 />
               </div>
             ) : inputType === 'url' ? (
-              <VideoURLUploader onTranscript={setTranscript} />
+              <VideoURLUploader onTranscript={setTranscript} language={selectedLanguage} />
             ) : (
-              <WaveformRecorder onTranscript={setTranscript} />
+              <WaveformRecorder onTranscript={setTranscript} language={selectedLanguage} />
             )}
 
             <div className="flex items-center justify-between">
-              <div className="text-sm text-slate-500">
-                {inputType === 'file' 
-                  ? `File: ${selectedFile ? selectedFile.name : 'No file selected'}`
-                  : `URL: ${videoUrl ? 'Entered' : 'No URL entered'}`
-                }
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-slate-500">
+                  {inputType === 'file' 
+                    ? `File: ${selectedFile ? selectedFile.name : 'No file selected'}`
+                    : `URL: ${videoUrl ? 'Entered' : 'No URL entered'}`
+                  }
+                </div>
+                <button
+                  onClick={() => setShowLanguageModal(true)}
+                  className="px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-slate-700 border border-slate-300 transition-colors text-sm"
+                >
+                  🌐 {getLanguageName(selectedLanguage)}
+                </button>
               </div>
               <button 
                 onClick={handleTranscribe}
@@ -221,9 +328,16 @@ export default function TranscriberPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Transcript
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-700">
+                  Transcript
+                </label>
+                {detectedLanguage && (
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                    Detected: {getLanguageName(detectedLanguage)}
+                  </span>
+                )}
+              </div>
               <motion.textarea
                 key={transcript}
                 initial={{ opacity: 0, y: 10 }}
@@ -263,6 +377,50 @@ export default function TranscriberPage() {
                   </div>
                 </div>
               )}
+
+              {/* Translation Section */}
+              {transcript && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="mt-6 space-y-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium text-slate-900">🌍 Translation</h3>
+                    <button
+                      onClick={() => setShowTranslateModal(true)}
+                      disabled={isTranslating}
+                      className="px-6 py-3 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white rounded-lg hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isTranslating ? 'Translating...' : '🌍 Translate Transcript'}
+                    </button>
+                  </div>
+
+                  {translation && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.4 }}
+                      className="p-6 rounded-xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-lg border border-white/20 shadow-[0_0_20px_rgba(30,58,138,0.1)]"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-medium text-slate-900">
+                          Translation ({getLanguageName(targetLanguage)}):
+                        </h4>
+                        <button
+                          onClick={playTranslation}
+                          disabled={isPlayingTTS}
+                          className="px-4 py-2 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white rounded-lg hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed animate-pulse-glow"
+                        >
+                          {isPlayingTTS ? '🔊 Playing...' : '🔊 Listen Translation'}
+                        </button>
+                      </div>
+                      <p className="text-slate-700 leading-relaxed">{translation}</p>
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
             </div>
 
             <div className="flex gap-4">
@@ -291,6 +449,25 @@ export default function TranscriberPage() {
           </div>
         </motion.div>
       </div>
+
+      {/* Language Selection Modal */}
+      <LanguageSelectModal
+        isOpen={showLanguageModal}
+        onClose={() => setShowLanguageModal(false)}
+        onSelect={setSelectedLanguage}
+        title="🎙 Choose Audio Language"
+      />
+
+      {/* Translation Target Language Modal */}
+      <LanguageSelectModal
+        isOpen={showTranslateModal}
+        onClose={() => setShowTranslateModal(false)}
+        onSelect={(lang) => {
+          setTargetLanguage(lang);
+          handleTranslate();
+        }}
+        title="🌍 Choose Translation Language"
+      />
     </main>
   );
 }

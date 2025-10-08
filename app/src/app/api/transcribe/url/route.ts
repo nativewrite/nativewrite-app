@@ -7,7 +7,7 @@ import ytdl from 'ytdl-core';
 
 export async function POST(req: Request) {
   try {
-    const { videoUrl } = await req.json();
+    const { videoUrl, language } = await req.json();
     if (!videoUrl) {
       return NextResponse.json({ error: 'Missing video URL' }, { status: 400 });
     }
@@ -50,6 +50,9 @@ export async function POST(req: Request) {
     const formData = new FormData();
     formData.append('file', fileStream);
     formData.append('model', 'whisper-1');
+    if (language && language !== 'auto') {
+      formData.append('language', language);
+    }
 
     let transcript = '';
     try {
@@ -70,7 +73,12 @@ export async function POST(req: Request) {
     // Cleanup temp file
     try { if (fs.existsSync(audioPath)) { fs.unlinkSync(audioPath); } } catch {}
 
-    return NextResponse.json({ success: true, transcript });
+    return NextResponse.json({ 
+      success: true, 
+      transcript,
+      detectedLanguage: language || 'auto',
+      requestedLanguage: language || 'auto'
+    });
   } catch {
     return NextResponse.json({ error: 'Failed to transcribe video. Please try again.' }, { status: 500 });
   }

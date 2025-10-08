@@ -4,9 +4,10 @@ import { useState } from 'react';
 
 type Props = {
   onTranscript: (text: string) => void;
+  language?: string;
 };
 
-export default function VideoURLUploader({ onTranscript }: Props) {
+export default function VideoURLUploader({ onTranscript, language = 'auto' }: Props) {
   const [videoUrl, setVideoUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'downloading' | 'transcribing' | 'done' | 'error'>('idle');
   const [error, setError] = useState<string>('');
@@ -20,7 +21,7 @@ export default function VideoURLUploader({ onTranscript }: Props) {
       const res = await fetch('/api/transcribe/url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoUrl })
+        body: JSON.stringify({ videoUrl, language })
       });
 
       setStatus('transcribing');

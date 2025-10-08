@@ -102,20 +102,32 @@ export async function POST(req: NextRequest) {
     let audioUrl: string | null = null;
     let audioData: string | null = null;
     let audioFile: File | null = null;
+    let language: string | undefined = undefined;
 
     if (contentType.includes('multipart/form-data')) {
       // Handle FormData (file upload from WaveformRecorder)
       const formData = await req.formData();
       audioFile = formData.get('audio') as File;
+      const langParam = formData.get('language') as string;
       
       if (!audioFile) {
         return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
+      }
+      
+      // Set language if provided and not auto-detect
+      if (langParam && langParam !== 'auto') {
+        language = langParam;
       }
     } else {
       // Handle JSON (URL or base64 data)
       const body = await req.json();
       audioUrl = body.audioUrl;
       audioData = body.audioData;
+      
+      // Set language if provided and not auto-detect
+      if (body.language && body.language !== 'auto') {
+        language = body.language;
+      }
     }
 
     if (!audioUrl && !audioData && !audioFile) {
@@ -169,7 +181,8 @@ export async function POST(req: NextRequest) {
           file: audioFile,
           model: 'whisper-1',
           response_format: 'verbose_json',
-          timestamp_granularities: ['segment']
+          timestamp_granularities: ['segment'],
+          ...(language && { language })
         });
       } else if (audioData) {
         // Convert base64 to buffer for OpenAI
@@ -183,7 +196,8 @@ export async function POST(req: NextRequest) {
           file: audioFile,
           model: 'whisper-1',
           response_format: 'verbose_json',
-          timestamp_granularities: ['segment']
+          timestamp_granularities: ['segment'],
+          ...(language && { language })
         });
       } else if (audioSource) {
         // For URL-based audio/video, we need to download and convert to File object
@@ -202,7 +216,8 @@ export async function POST(req: NextRequest) {
             file: audioFile,
             model: 'whisper-1',
             response_format: 'verbose_json',
-            timestamp_granularities: ['segment']
+            timestamp_granularities: ['segment'],
+            ...(language && { language })
           });
         } catch (openaiError) {
           console.error('OpenAI transcription failed for URL:', openaiError);
@@ -253,7 +268,9 @@ We're continuously improving our transcription capabilities for all video platfo
           text: segment.text,
           start: segment.start,
           end: segment.end
-        })) || []
+        })) || [],
+        detectedLanguage: transcriptionResult?.language || language || 'auto',
+        requestedLanguage: language || 'auto'
       });
       
     } catch (openaiError) {
@@ -276,7 +293,9 @@ OpenAI Whisper provides excellent transcription accuracy and is much more reliab
       return NextResponse.json({ 
         success: true, 
         text: demoTranscript,
-        speakers: []
+        speakers: [],
+        detectedLanguage: language || 'en',
+        requestedLanguage: language || 'auto'
       });
     }
 

@@ -4,9 +4,10 @@ import { useState, useRef, useEffect } from 'react';
 
 type Props = {
   onTranscript: (text: string) => void;
+  language?: string;
 };
 
-export default function WaveformRecorder({ onTranscript }: Props) {
+export default function WaveformRecorder({ onTranscript, language = 'auto' }: Props) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -134,6 +135,7 @@ export default function WaveformRecorder({ onTranscript }: Props) {
     try {
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
+      formData.append('language', language);
 
       const response = await fetch('/api/transcriber', {
         method: 'POST',
