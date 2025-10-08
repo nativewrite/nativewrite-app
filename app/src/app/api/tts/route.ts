@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { supabase } from "@/lib/supabase";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -7,7 +8,7 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, language, voice } = await request.json();
+    const { text, language, voice, transcriptionId } = await request.json();
 
     if (!text) {
       return NextResponse.json(
@@ -63,6 +64,31 @@ export async function POST(request: NextRequest) {
     });
 
     const audioBuffer = Buffer.from(await response.arrayBuffer());
+
+    // Note: For production, you would upload the audio to cloud storage (e.g., Supabase Storage)
+    // and save the permanent URL. For now, we'll save a placeholder.
+    if (transcriptionId) {
+      try {
+        // In production, upload audioBuffer to Supabase Storage first
+        // const { data: uploadData } = await supabase.storage
+        //   .from('tts-audio')
+        //   .upload(`${transcriptionId}.mp3`, audioBuffer, { contentType: 'audio/mpeg' });
+        
+        // For now, just mark that TTS was generated
+        const { error } = await supabase
+          .from('transcriptions')
+          .update({
+            tts_url: `generated-${Date.now()}.mp3` // Placeholder - replace with actual URL in production
+          })
+          .eq('id', transcriptionId);
+        
+        if (error) {
+          console.error('Failed to save TTS URL to Supabase:', error);
+        }
+      } catch (supabaseError) {
+        console.error('Supabase update error:', supabaseError);
+      }
+    }
 
     return new NextResponse(audioBuffer, {
       status: 200,

@@ -21,6 +21,7 @@ export default function TranscriberPage() {
   const [showTranslateModal, setShowTranslateModal] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState('en');
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+  const [transcriptionId, setTranscriptionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,6 +84,7 @@ export default function TranscriberPage() {
       if (data.success) {
         setTranscript(data.text);
         setDetectedLanguage(data.detectedLanguage || 'auto');
+        setTranscriptionId(data.transcriptionId || null);
 
         // After success, show audio player for uploaded files
         if (inputType === 'file' && selectedFile) {
@@ -136,7 +138,8 @@ export default function TranscriberPage() {
         body: JSON.stringify({ 
           text: transcript, 
           from: detectedLanguage || selectedLanguage, 
-          to: targetLanguage 
+          to: targetLanguage,
+          transcriptionId: transcriptionId
         })
       });
 
@@ -164,7 +167,11 @@ export default function TranscriberPage() {
       const response = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: translation, language: targetLanguage })
+        body: JSON.stringify({ 
+          text: translation, 
+          language: targetLanguage,
+          transcriptionId: transcriptionId
+        })
       });
 
       if (response.ok) {

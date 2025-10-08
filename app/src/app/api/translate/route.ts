@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { supabase } from "@/lib/supabase";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -7,7 +8,7 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, from, to } = await request.json();
+    const { text, from, to, transcriptionId } = await request.json();
 
     if (!text) {
       return NextResponse.json(
@@ -74,6 +75,26 @@ Return only the translated text, no explanations or additional commentary.`;
 
     if (!translation) {
       throw new Error("No translation received from OpenAI");
+    }
+
+    // Save translation to Supabase if transcriptionId is provided
+    if (transcriptionId) {
+      try {
+        const { error } = await supabase
+          .from('transcriptions')
+          .update({
+            translation_text: translation.trim(),
+            target_language: to
+          })
+          .eq('id', transcriptionId);
+        
+        if (error) {
+          console.error('Failed to save translation to Supabase:', error);
+          // Don't fail the whole request if Supabase fails
+        }
+      } catch (supabaseError) {
+        console.error('Supabase update error:', supabaseError);
+      }
     }
 
     return NextResponse.json({

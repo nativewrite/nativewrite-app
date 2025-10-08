@@ -107,6 +107,13 @@ export default function DashboardPage() {
               >
                 📚 Book Write
               </Link>
+              
+              <Link 
+                href="/history"
+                className="px-4 py-2 rounded-lg text-slate-700 hover:text-[#1E3A8A] transition-colors font-medium"
+              >
+                📜 History
+              </Link>
             </div>
           </div>
         </div>

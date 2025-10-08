@@ -12,7 +12,7 @@
     "@anthropic-ai/sdk": "^0.61.0",
     "@headlessui/react": "^2.2.9",
     "@stripe/stripe-js": "^7.9.0",
-    "@supabase/supabase-js": "^2.57.2",
+    "@supabase/supabase-js": "^2.74.0",
     "assemblyai": "^4.16.0",
     "axios": "^1.12.2",
     "docx": "^9.5.1",

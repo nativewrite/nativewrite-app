@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
+import { supabase } from '@/lib/supabase';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 
 // Function to get audio stream URL from various video platforms
 async function getAudioStreamUrl(videoUrl: string): Promise<string | null> {
@@ -96,6 +99,10 @@ function extractVideoId(url: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    // Get user session
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.email; // Using email as user identifier
+    
     // Check if request is FormData (file upload) or JSON
     const contentType = req.headers.get('content-type') || '';
     
@@ -103,12 +110,14 @@ export async function POST(req: NextRequest) {
     let audioData: string | null = null;
     let audioFile: File | null = null;
     let language: string | undefined = undefined;
+    let sourceType: 'upload' | 'record' | 'url' = 'upload';
 
     if (contentType.includes('multipart/form-data')) {
       // Handle FormData (file upload from WaveformRecorder)
       const formData = await req.formData();
       audioFile = formData.get('audio') as File;
       const langParam = formData.get('language') as string;
+      const sourceParam = formData.get('sourceType') as string;
       
       if (!audioFile) {
         return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
@@ -118,11 +127,19 @@ export async function POST(req: NextRequest) {
       if (langParam && langParam !== 'auto') {
         language = langParam;
       }
+      
+      // Set source type
+      if (sourceParam && (sourceParam === 'upload' || sourceParam === 'record' || sourceParam === 'url')) {
+        sourceType = sourceParam;
+      } else {
+        sourceType = 'record'; // Default for FormData uploads
+      }
     } else {
       // Handle JSON (URL or base64 data)
       const body = await req.json();
       audioUrl = body.audioUrl;
       audioData = body.audioData;
+      sourceType = body.sourceType || (audioUrl ? 'url' : 'upload');
       
       // Set language if provided and not auto-detect
       if (body.language && body.language !== 'auto') {
@@ -259,9 +276,46 @@ We're continuously improving our transcription capabilities for all video platfo
         }
       }
 
+      const detectedLang = transcriptionResult?.language || language || 'auto';
+      const transcriptText = transcriptionResult?.text || 'No transcription available';
+      
+      // Calculate duration if available
+      const durationSeconds = transcriptionResult?.duration || 
+        (transcriptionResult?.segments && transcriptionResult.segments.length > 0 
+          ? Math.round(transcriptionResult.segments[transcriptionResult.segments.length - 1].end) 
+          : null);
+      
+      // Save to Supabase if user is logged in
+      let transcriptionId = null;
+      if (userId) {
+        try {
+          const { data, error } = await supabase
+            .from('transcriptions')
+            .insert({
+              user_id: userId,
+              source_type: sourceType,
+              detected_language: detectedLang,
+              transcript_text: transcriptText,
+              audio_url: audioUrl || audioSource || null,
+              duration_seconds: durationSeconds
+            })
+            .select('id')
+            .single();
+          
+          if (!error && data) {
+            transcriptionId = data.id;
+          } else if (error) {
+            console.error('Supabase insert error:', error);
+          }
+        } catch (supabaseError) {
+          console.error('Failed to save transcription to Supabase:', supabaseError);
+          // Don't fail the whole request if Supabase fails
+        }
+      }
+
       return NextResponse.json({ 
         success: true, 
-        text: transcriptionResult?.text || 'No transcription available',
+        text: transcriptText,
         segments: transcriptionResult?.segments || [],
         speakers: transcriptionResult?.segments?.map((segment, index) => ({
           speaker: `Speaker ${index + 1}`,
@@ -269,8 +323,9 @@ We're continuously improving our transcription capabilities for all video platfo
           start: segment.start,
           end: segment.end
         })) || [],
-        detectedLanguage: transcriptionResult?.language || language || 'auto',
-        requestedLanguage: language || 'auto'
+        detectedLanguage: detectedLang,
+        requestedLanguage: language || 'auto',
+        transcriptionId: transcriptionId
       });
       
     } catch (openaiError) {
