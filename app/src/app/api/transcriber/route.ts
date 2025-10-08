@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
 import { supabase } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 
 // Function to get audio stream URL from various video platforms
 async function getAudioStreamUrl(videoUrl: string): Promise<string | null> {
