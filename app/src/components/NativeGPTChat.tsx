@@ -46,6 +46,8 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
     setLoading(true);
 
     try {
+      console.log("Sending message to NativeGPT:", { messages: newMessages, transcriptionId, sessionId });
+      
       const response = await fetch("/api/nativegpt/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,20 +58,28 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
         }),
       });
 
+      console.log("NativeGPT response status:", response.status);
+
       if (!response.ok) {
-        throw new Error("Failed to get response");
+        const errorData = await response.json();
+        console.error("NativeGPT API error:", errorData);
+        throw new Error(errorData.error || "Failed to get response");
       }
 
       const data = await response.json();
+      console.log("NativeGPT response data:", data);
+      
       const assistantMsg: Message = { role: "assistant", content: data.reply };
       setMessages([...newMessages, assistantMsg]);
       
       if (data.sessionId && !sessionId) {
         setSessionId(data.sessionId);
       }
+      
+      toast.success("Message sent successfully!");
     } catch (error) {
       console.error("Chat error:", error);
-      toast.error("Failed to send message. Please try again.");
+      toast.error(`Failed to send message: ${error instanceof Error ? error.message : 'Unknown error'}`);
       // Remove the user message if failed
       setMessages(messages);
     } finally {
@@ -162,11 +172,11 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
         onClick={() => setIsOpen(!isOpen)}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="fixed bottom-6 right-6 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white px-6 py-3 rounded-full shadow-2xl backdrop-blur-md border border-white/20 font-medium z-50 glow-button"
+        className="fixed bottom-6 right-6 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white px-6 py-4 rounded-full shadow-2xl backdrop-blur-md border-2 border-white/30 font-medium z-50 hover:shadow-[0_0_30px_rgba(30,58,138,0.6)] transition-all duration-300"
       >
         <span className="flex items-center gap-2">
-          <span className="text-xl">🧠</span>
-          <span>Chat with NativeGPT</span>
+          <span className="text-2xl">🧠</span>
+          <span className="font-semibold">NativeGPT</span>
         </span>
       </motion.button>
 
@@ -178,17 +188,19 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="fixed bottom-0 right-0 w-full max-w-[450px] h-[700px] bg-white/10 backdrop-blur-2xl border border-white/20 shadow-[0_0_50px_rgba(30,58,138,0.3)] rounded-tl-3xl overflow-hidden flex flex-col z-50"
+            className="fixed bottom-0 right-0 w-full max-w-[500px] h-[750px] bg-white/20 backdrop-blur-3xl border-2 border-white/40 shadow-[0_0_60px_rgba(30,58,138,0.5)] rounded-tl-3xl overflow-hidden flex flex-col z-50"
           >
             {/* Header */}
-            <div className="flex justify-between items-center px-5 py-4 bg-gradient-to-r from-[#1E3A8A]/30 to-[#00B4D8]/30 border-b border-white/10">
+            <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-[#1E3A8A]/50 to-[#00B4D8]/50 border-b border-white/20">
               <div>
-                <h3 className="font-semibold text-white text-lg">NativeGPT Assistant</h3>
-                <p className="text-xs text-white/60">Powered by OpenAI GPT-4o-mini</p>
+                <h3 className="font-bold text-white text-xl flex items-center gap-2">
+                  🧠 NativeGPT Assistant
+                </h3>
+                <p className="text-sm text-white/80">Powered by OpenAI GPT-4o-mini</p>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-white/60 hover:text-white transition-colors text-xl"
+                className="text-white/70 hover:text-white transition-colors text-2xl hover:bg-white/20 rounded-full p-1"
               >
                 ✖
               </button>
@@ -199,16 +211,16 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="px-4 py-3 border-b border-white/10 bg-white/5 smartbar"
+                className="px-6 py-4 border-b border-white/20 bg-white/10 smartbar"
               >
-                <p className="text-xs text-white/60 mb-2 font-medium">Quick Actions:</p>
+                <p className="text-sm text-white/80 mb-3 font-semibold">⚡ Quick Actions:</p>
                 <div className="flex flex-wrap gap-2">
                   {smartCommands.map((cmd, i) => (
                     <button
                       key={i}
                       onClick={() => handleSmartCommand(cmd.prompt)}
                       disabled={loading}
-                      className="text-xs px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg border border-white/10 backdrop-blur-sm transition-all duration-200 active:scale-95 disabled:opacity-50"
+                      className="text-sm px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg border border-white/20 backdrop-blur-sm transition-all duration-200 active:scale-95 disabled:opacity-50 hover:shadow-lg"
                     >
                       {cmd.label}
                     </button>
@@ -218,7 +230,7 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
             )}
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-white/5">
               {messages
                 .filter((m) => m.role !== "system")
                 .map((m, i) => (
@@ -260,7 +272,7 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
             </div>
 
             {/* Input Area */}
-            <div className="p-4 border-t border-white/10 bg-white/5 space-y-3">
+            <div className="p-6 border-t border-white/20 bg-white/10 space-y-4">
               {/* Action Buttons */}
               {messages.length > 2 && (
                 <motion.div
@@ -286,7 +298,7 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
               )}
 
               {/* Input Box */}
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <input
                   type="text"
                   placeholder="Ask NativeGPT anything..."
@@ -294,14 +306,14 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
                   disabled={loading}
-                  className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 outline-none focus:border-white/40 transition-all disabled:opacity-50 backdrop-blur-sm"
+                  className="flex-1 bg-white/20 border-2 border-white/30 rounded-xl px-5 py-4 text-white placeholder-white/50 outline-none focus:border-white/50 transition-all disabled:opacity-50 backdrop-blur-sm text-base font-medium"
                 />
                 <button
                   onClick={() => sendMessage()}
                   disabled={loading || !input.trim()}
-                  className="px-5 py-3 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white rounded-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                  className="px-6 py-4 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white rounded-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-[0_0_25px_rgba(30,58,138,0.5)]"
                 >
-                  <span className="text-lg">➤</span>
+                  <span className="text-xl font-bold">➤</span>
                 </button>
               </div>
             </div>
