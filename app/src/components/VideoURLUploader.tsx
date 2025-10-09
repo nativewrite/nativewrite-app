@@ -17,17 +17,13 @@ export default function VideoURLUploader({ onTranscript, language = 'auto' }: Pr
     setError('');
     setStatus('downloading');
     try {
-      // Check if it's a YouTube URL and use the dedicated endpoint
-      const isYouTube = videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be');
-      
-      const res = await fetch(isYouTube ? '/api/transcribe/fromurl' : '/api/transcriber', {
+      // Use universal URL transcription endpoint for any URL
+      const res = await fetch('/api/transcribe/universal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           url: videoUrl, 
-          language,
-          audioUrl: videoUrl,
-          sourceType: 'url'
+          language
         })
       });
 
@@ -56,7 +52,7 @@ export default function VideoURLUploader({ onTranscript, language = 'auto' }: Pr
         type="url"
         value={videoUrl}
         onChange={(e) => setVideoUrl(e.target.value)}
-        placeholder="https://youtube.com/watch?v=... or TikTok/Instagram/Vimeo URL"
+        placeholder="Any audio/video URL: YouTube, TikTok, Instagram, Vimeo, MP3, MP4, etc."
         className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-transparent"
       />
       <div className="flex items-center gap-3">

@@ -49,24 +49,27 @@ export default function TranscriberPage() {
 
     setIsLoading(true);
     try {
-      let audioData = null;
+      let response;
 
       if (inputType === 'file' && selectedFile) {
-        // Convert file to base64 for direct processing
-        const reader = new FileReader();
-        audioData = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(selectedFile);
+        // Use FormData for file uploads to handle large files properly
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('language', selectedLanguage);
+        formData.append('sourceType', 'upload');
+
+        response = await fetch('/api/transcriber', {
+          method: 'POST',
+          body: formData
+        });
+      } else {
+        // For other input types, use JSON
+        response = await fetch('/api/transcriber', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ language: selectedLanguage, sourceType: inputType })
         });
       }
-
-      // Start transcription
-      const response = await fetch('/api/transcriber', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioData, language: selectedLanguage, sourceType: 'upload' })
-      });
 
       const data = await response.json();
       
