@@ -4,7 +4,7 @@ import ytdl from "ytdl-core";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { writeFile, unlink } from "fs/promises";
+import { unlink } from "fs/promises";
 import path from "path";
 import fs from "fs";
 
@@ -47,8 +47,7 @@ export async function POST(request: NextRequest) {
       console.log("Downloading audio from YouTube:", url);
       const stream = ytdl(url, { 
         filter: "audioonly", 
-        quality: "highestaudio",
-        format: "mp3"
+        quality: "highestaudio"
       });
       
       const writeStream = fs.createWriteStream(tempPath);
