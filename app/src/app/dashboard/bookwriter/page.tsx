@@ -16,6 +16,7 @@ export default function BookWriterPage() {
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const [ideaPrompt, setIdeaPrompt] = useState("");
   const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
+  const [isExpandingChapter, setIsExpandingChapter] = useState(false);
 
   // Load chapters from localStorage on mount
   useEffect(() => {
@@ -135,6 +136,65 @@ export default function BookWriterPage() {
     [newChapters[index], newChapters[targetIndex]] = [newChapters[targetIndex], newChapters[index]];
     setChapters(newChapters);
     toast.success("Chapter reordered");
+  };
+
+  const handleExpandChapter = async (chapter: Chapter) => {
+    if (!chapter) return;
+
+    setIsExpandingChapter(true);
+    toast.loading("Expanding chapter with AI...");
+
+    try {
+      const response = await fetch("/api/book/expand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chapterTitle: chapter.title,
+          chapterSummary: chapter.summary || "",
+          currentText: chapter.content,
+        }),
+      });
+
+      toast.dismiss();
+
+      if (!response.ok) {
+        throw new Error("Failed to expand chapter");
+      }
+
+      const data = await response.json();
+
+      if (data.text) {
+        const separator = chapter.content ? "\n\n" : "";
+        updateChapter(chapter.id, { 
+          content: chapter.content + separator + data.text 
+        });
+        toast.success(`Added ${data.wordCount || 300} words! ✨`);
+      } else {
+        toast.error("No content generated");
+      }
+    } catch (error) {
+      console.error("Chapter expansion error:", error);
+      toast.error("Failed to expand chapter");
+    } finally {
+      setIsExpandingChapter(false);
+    }
+  };
+
+  const handleOpenChapterChat = (chapter: Chapter) => {
+    if (!chapter) return;
+    
+    // Save chapter context for NativeGPT
+    localStorage.setItem("nativewrite_gptcontext", JSON.stringify({
+      chapterId: chapter.id,
+      chapterTitle: chapter.title,
+      chapterSummary: chapter.summary || "",
+      chapterContent: chapter.content,
+    }));
+    
+    toast.success("Opening chapter chat...");
+    
+    // Open NativeGPT in a new tab
+    window.open(`/nativegpt?chapter=${encodeURIComponent(chapter.title)}`, "_blank");
   };
 
   return (
@@ -269,6 +329,23 @@ export default function BookWriterPage() {
 
 You can paste content from NativeGPT or write directly. The content auto-saves as you type."
               />
+            </div>
+
+            {/* AI Tools */}
+            <div className="flex gap-3 mb-4">
+              <button
+                onClick={() => handleExpandChapter(currentChapter)}
+                disabled={isExpandingChapter}
+                className="px-5 py-2.5 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white rounded-lg hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-50 font-medium"
+              >
+                {isExpandingChapter ? "⚡ Expanding..." : "⚡ Expand Chapter with AI"}
+              </button>
+              <button
+                onClick={() => handleOpenChapterChat(currentChapter)}
+                className="px-5 py-2.5 bg-white/60 hover:bg-white/80 text-slate-800 rounded-lg border border-slate-300 transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+              >
+                💬 Open Chapter Chat
+              </button>
             </div>
 
             {/* Stats */}
