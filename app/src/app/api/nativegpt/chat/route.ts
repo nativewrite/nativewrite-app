@@ -10,9 +10,12 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("NativeGPT API called");
     const session = await getServerSession(authOptions);
+    console.log("Session:", session?.user?.email ? "Authenticated" : "Not authenticated");
     
     if (!session?.user?.email) {
+      console.log("Returning 401 - Unauthorized");
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -20,6 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { messages, transcriptionId, sessionId } = await request.json();
+    console.log("NativeGPT request data:", { messagesCount: messages?.length, transcriptionId, sessionId });
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -29,6 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call OpenAI API
+    console.log("Calling OpenAI API...");
     const chatResponse = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: messages,
@@ -36,7 +41,9 @@ export async function POST(request: NextRequest) {
       max_tokens: 2000,
     });
 
+    console.log("OpenAI response received");
     const assistantMessage = chatResponse.choices[0]?.message?.content;
+    console.log("Assistant message:", assistantMessage?.substring(0, 100) + "...");
 
     if (!assistantMessage) {
       throw new Error("No response from AI");

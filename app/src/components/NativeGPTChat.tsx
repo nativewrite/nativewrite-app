@@ -22,7 +22,7 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
     },
   ]);
   const [input, setInput] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true); // Always open by default
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -59,6 +59,7 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
       });
 
       console.log("NativeGPT response status:", response.status);
+      console.log("NativeGPT response headers:", Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -167,16 +168,16 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
 
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating Button - Always Visible */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="fixed bottom-6 right-6 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white px-6 py-4 rounded-full shadow-2xl backdrop-blur-md border-2 border-white/30 font-medium z-50 hover:shadow-[0_0_30px_rgba(30,58,138,0.6)] transition-all duration-300"
+        className="fixed bottom-6 right-6 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white px-8 py-4 rounded-full shadow-2xl backdrop-blur-md border-2 border-white/30 font-medium z-50 hover:shadow-[0_0_30px_rgba(30,58,138,0.6)] transition-all duration-300 animate-pulse"
       >
-        <span className="flex items-center gap-2">
-          <span className="text-2xl">🧠</span>
-          <span className="font-semibold">NativeGPT</span>
+        <span className="flex items-center gap-3">
+          <span className="text-3xl">🧠</span>
+          <span className="font-bold text-lg">NativeGPT</span>
         </span>
       </motion.button>
 
