@@ -1,18 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useRef, useEffect, Suspense } from "react";
+import { motion } from "framer-motion";
 import { toast, Toaster } from "sonner";
-import { useSearchParams } from "next/navigation";
 
 interface Message {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
-export default function NativeGPTPage() {
-  const searchParams = useSearchParams();
-  const chapterParam = searchParams.get("chapter");
+function NativeGPTContent() {
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -295,6 +292,21 @@ Your role is to help expand, improve, brainstorm, and polish this chapter. Be cr
         }
       `}</style>
     </main>
+  );
+}
+
+export default function NativeGPTPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-[#0f172a] to-[#1e293b] flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="inline-block w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
+          <p>Loading NativeGPT...</p>
+        </div>
+      </div>
+    }>
+      <NativeGPTContent />
+    </Suspense>
   );
 }
 
