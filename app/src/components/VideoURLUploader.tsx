@@ -18,6 +18,8 @@ export default function VideoURLUploader({ onTranscript, language = 'auto' }: Pr
     setStatus('downloading');
     try {
       // Use universal URL transcription endpoint for any URL
+      console.log("Starting URL transcription:", { url: videoUrl, language });
+      
       const res = await fetch('/api/transcribe/universal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -26,17 +28,23 @@ export default function VideoURLUploader({ onTranscript, language = 'auto' }: Pr
           language
         })
       });
+      
+      console.log("URL transcription response status:", res.status);
 
       setStatus('transcribing');
 
       const data = await res.json();
+      console.log("URL transcription response data:", data);
+      
       if (!res.ok || !data?.success) {
+        console.error("URL transcription failed:", data);
         throw new Error(data?.error || 'Failed to transcribe');
       }
 
       onTranscript(data.text || '');
       setStatus('done');
     } catch (e: unknown) {
+      console.error("URL transcription error:", e);
       const message = e instanceof Error ? e.message : 'Failed to transcribe video';
       setError(message);
       setStatus('error');

@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
 
     const { url, language = 'auto' } = await request.json();
     
+    console.log("Universal transcription request:", { url, language });
+    
     if (!url) {
       return NextResponse.json(
         { error: "Missing URL" },

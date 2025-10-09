@@ -53,11 +53,14 @@ export default function TranscriberPage() {
 
       if (inputType === 'file' && selectedFile) {
         // Use FormData for file uploads to handle large files properly
+        console.log("Uploading file:", { name: selectedFile.name, size: selectedFile.size, type: selectedFile.type });
+        
         const formData = new FormData();
         formData.append('file', selectedFile);
         formData.append('language', selectedLanguage);
         formData.append('sourceType', 'upload');
 
+        console.log("FormData created, sending to API...");
         response = await fetch('/api/transcriber', {
           method: 'POST',
           body: formData
@@ -71,7 +74,9 @@ export default function TranscriberPage() {
         });
       }
 
+      console.log("Transcription response status:", response.status);
       const data = await response.json();
+      console.log("Transcription response data:", data);
       
       if (data.success) {
         setTranscript(data.text);
@@ -85,10 +90,12 @@ export default function TranscriberPage() {
           setRecordedAudio({ blob, url });
         }
       } else {
+        console.error("Transcription failed:", data);
         alert(data.error || 'Failed to transcribe audio');
       }
-    } catch {
-      alert('Failed to transcribe audio. Please try again.');
+    } catch (error) {
+      console.error("Transcription error:", error);
+      alert(`Failed to transcribe audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -461,13 +468,11 @@ export default function TranscriberPage() {
         title="🌍 Choose Translation Language"
       />
 
-      {/* NativeGPT Chat Assistant */}
-      {transcript && (
-        <NativeGPTChat
-          transcriptText={transcript}
-          transcriptionId={transcriptionId || undefined}
-        />
-      )}
+      {/* NativeGPT Chat Assistant - Always Visible */}
+      <NativeGPTChat
+        transcriptText={transcript}
+        transcriptionId={transcriptionId || undefined}
+      />
     </main>
   );
 }

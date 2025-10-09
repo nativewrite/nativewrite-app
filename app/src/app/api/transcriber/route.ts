@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
       // Handle file upload from WaveformRecorder or file upload
       const formData = await request.formData();
       const file = formData.get("file") as File;
+      
+      console.log("Received FormData fields:", Array.from(formData.keys()));
+      console.log("File received:", file ? { name: file.name, size: file.size, type: file.type } : "No file");
       const lang = formData.get("language") as string;
       
       if (!file) {
