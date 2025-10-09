@@ -306,7 +306,7 @@ export default function NativeGPTChat({ transcriptText, transcriptionId }: Nativ
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
                   disabled={loading}
-                  className="flex-1 bg-white/20 border-2 border-white/30 rounded-xl px-5 py-4 text-white placeholder-white/50 outline-none focus:border-white/50 transition-all disabled:opacity-50 backdrop-blur-sm text-base font-medium"
+                  className="flex-1 bg-[#0F1115] border-2 border-gray-700 rounded-xl px-5 py-4 text-gray-100 placeholder-gray-500 outline-none focus:border-blue-400 focus:ring-0 transition-all disabled:opacity-50 backdrop-blur-sm text-base font-medium"
                 />
                 <button
                   onClick={() => sendMessage()}

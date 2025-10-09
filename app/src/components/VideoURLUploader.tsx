@@ -17,11 +17,18 @@ export default function VideoURLUploader({ onTranscript, language = 'auto' }: Pr
     setError('');
     setStatus('downloading');
     try {
-      // Kick off server-side flow
-      const res = await fetch('/api/transcribe/url', {
+      // Check if it's a YouTube URL and use the dedicated endpoint
+      const isYouTube = videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be');
+      
+      const res = await fetch(isYouTube ? '/api/transcribe/fromurl' : '/api/transcriber', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoUrl, language })
+        body: JSON.stringify({ 
+          url: videoUrl, 
+          language,
+          audioUrl: videoUrl,
+          sourceType: 'url'
+        })
       });
 
       setStatus('transcribing');
@@ -31,7 +38,7 @@ export default function VideoURLUploader({ onTranscript, language = 'auto' }: Pr
         throw new Error(data?.error || 'Failed to transcribe');
       }
 
-      onTranscript(data.transcript || '');
+      onTranscript(data.text || '');
       setStatus('done');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Failed to transcribe video';

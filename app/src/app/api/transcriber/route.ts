@@ -1,363 +1,204 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { openai } from '@/lib/openai';
-import { supabase } from '@/lib/supabase';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { writeFile, unlink } from "fs/promises";
+import path from "path";
+import fs from "fs";
 
-// Function to get audio stream URL from various video platforms
-async function getAudioStreamUrl(videoUrl: string): Promise<string | null> {
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+});
+
+export async function POST(request: NextRequest) {
   try {
-    // Try different approaches for different platforms
-    if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
-      // Use a proxy service for YouTube
-      return await getYouTubeAudioUrl(videoUrl);
-    } else if (videoUrl.includes('instagram.com')) {
-      // Instagram video processing
-      return await getInstagramAudioUrl(videoUrl);
-    } else if (videoUrl.includes('tiktok.com')) {
-      // TikTok video processing
-      return await getTikTokAudioUrl(videoUrl);
-    } else if (videoUrl.includes('twitter.com') || videoUrl.includes('x.com')) {
-      // Twitter/X video processing
-      return await getTwitterAudioUrl(videoUrl);
-    } else {
-      // For other platforms, try direct URL
-      return videoUrl;
-    }
-  } catch (error) {
-    console.error('Error getting audio stream URL:', error);
-    return null;
-  }
-}
-
-// YouTube audio URL extraction
-async function getYouTubeAudioUrl(videoUrl: string): Promise<string | null> {
-  try {
-    // Use a web-based YouTube audio extractor service
-    const response = await fetch(`https://api.vevioz.com/api/button/mp3/128/${extractVideoId(videoUrl)}`);
-    if (response.ok) {
-      const data = await response.json();
-      return data.url || null;
-    }
-  } catch (error) {
-    console.error('YouTube audio extraction failed:', error);
-  }
-  return null;
-}
-
-// Instagram audio URL extraction
-async function getInstagramAudioUrl(videoUrl: string): Promise<string | null> {
-  try {
-    // Use Instagram video downloader API
-    const response = await fetch(`https://api.downloader.la/api/instagram?url=${encodeURIComponent(videoUrl)}`);
-    if (response.ok) {
-      const data = await response.json();
-      return data.video_url || null;
-    }
-  } catch (error) {
-    console.error('Instagram audio extraction failed:', error);
-  }
-  return null;
-}
-
-// TikTok audio URL extraction
-async function getTikTokAudioUrl(videoUrl: string): Promise<string | null> {
-  try {
-    // Use TikTok downloader API
-    const response = await fetch(`https://api.downloader.la/api/tiktok?url=${encodeURIComponent(videoUrl)}`);
-    if (response.ok) {
-      const data = await response.json();
-      return data.video_url || null;
-    }
-  } catch (error) {
-    console.error('TikTok audio extraction failed:', error);
-  }
-  return null;
-}
-
-// Twitter/X audio URL extraction
-async function getTwitterAudioUrl(videoUrl: string): Promise<string | null> {
-  try {
-    // Use Twitter video downloader API
-    const response = await fetch(`https://api.downloader.la/api/twitter?url=${encodeURIComponent(videoUrl)}`);
-    if (response.ok) {
-      const data = await response.json();
-      return data.video_url || null;
-    }
-  } catch (error) {
-    console.error('Twitter audio extraction failed:', error);
-  }
-  return null;
-}
-
-// Extract video ID from YouTube URL
-function extractVideoId(url: string): string {
-  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-  const match = url.match(regex);
-  return match ? match[1] : '';
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    // Get user session
     const session = await getServerSession(authOptions);
-    const userId = session?.user?.email; // Using email as user identifier
     
-    // Check if request is FormData (file upload) or JSON
-    const contentType = req.headers.get('content-type') || '';
-    
-    let audioUrl: string | null = null;
-    let audioData: string | null = null;
-    let audioFile: File | null = null;
-    let language: string | undefined = undefined;
-    let sourceType: 'upload' | 'record' | 'url' = 'upload';
-
-    if (contentType.includes('multipart/form-data')) {
-      // Handle FormData (file upload from WaveformRecorder)
-      const formData = await req.formData();
-      audioFile = formData.get('audio') as File;
-      const langParam = formData.get('language') as string;
-      const sourceParam = formData.get('sourceType') as string;
-      
-      if (!audioFile) {
-        return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
-      }
-      
-      // Set language if provided and not auto-detect
-      if (langParam && langParam !== 'auto') {
-        language = langParam;
-      }
-      
-      // Set source type
-      if (sourceParam && (sourceParam === 'upload' || sourceParam === 'record' || sourceParam === 'url')) {
-        sourceType = sourceParam;
-      } else {
-        sourceType = 'record'; // Default for FormData uploads
-      }
-    } else {
-      // Handle JSON (URL or base64 data)
-      const body = await req.json();
-      audioUrl = body.audioUrl;
-      audioData = body.audioData;
-      sourceType = body.sourceType || (audioUrl ? 'url' : 'upload');
-      
-      // Set language if provided and not auto-detect
-      if (body.language && body.language !== 'auto') {
-        language = body.language;
-      }
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
-    if (!audioUrl && !audioData && !audioFile) {
-      return NextResponse.json({ error: 'Audio URL, data, or file is required' }, { status: 400 });
-    }
-
-    let audioSource = audioUrl;
+    const contentType = request.headers.get("content-type");
     
-    // Handle any video URL - try to extract audio and transcribe
-    if (audioUrl) {
+    let language = 'auto';
+    let sourceType = 'upload';
+
+    if (contentType?.includes("multipart/form-data")) {
+      // Handle file upload from WaveformRecorder or file upload
+      const formData = await request.formData();
+      const file = formData.get("file") as File;
+      const lang = formData.get("language") as string;
+      
+      if (!file) {
+        return NextResponse.json(
+          { error: "No file provided" },
+          { status: 400 }
+        );
+      }
+
+      language = lang || 'auto';
+      
+      // Save file temporarily to handle large files (>1 minute)
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const tempPath = path.join("/tmp", `${Date.now()}_${file.name}`);
+      await writeFile(tempPath, buffer);
+
       try {
-        console.log('Processing video URL:', audioUrl);
-        
-        // Try to get audio stream from various video platforms
-        const audioStreamUrl = await getAudioStreamUrl(audioUrl);
-        
-        if (audioStreamUrl) {
-          // Use the audio stream URL for transcription
-          audioSource = audioStreamUrl;
-        } else {
-          // Fallback: try the original URL
-          audioSource = audioUrl;
-        }
-      } catch {
-        return NextResponse.json({ 
-          error: 'Failed to process video URL' 
-        }, { status: 500 });
-      }
-    }
-    
-    // If we have base64 audio data, upload it first
-    if (audioData && !audioUrl) {
-      try {
-        // For demo purposes, we'll simulate a successful upload
-        // In production, you'd upload to a cloud storage service
-        audioSource = `https://example.com/audio/${Date.now()}.mp3`;
-      } catch {
-        return NextResponse.json({ 
-          error: 'Failed to upload audio file' 
-        }, { status: 500 });
-      }
-    }
-
-    // Use OpenAI Whisper for transcription
-    try {
-      let transcriptionResult;
-      
-      if (audioFile) {
-        // Handle uploaded file directly
-        transcriptionResult = await openai.audio.transcriptions.create({
-          file: audioFile,
-          model: 'whisper-1',
-          response_format: 'verbose_json',
-          timestamp_granularities: ['segment'],
-          ...(language && { language })
+        const transcription = await openai.audio.transcriptions.create({
+          file: fs.createReadStream(tempPath),
+          model: "whisper-1",
+          language: language === 'auto' ? undefined : language,
         });
-      } else if (audioData) {
-        // Convert base64 to buffer for OpenAI
-        const base64Data = audioData.split(',')[1];
-        const audioBuffer = Buffer.from(base64Data, 'base64');
-        
-        // Create a file-like object for OpenAI
-        const audioFile = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
-        
-        transcriptionResult = await openai.audio.transcriptions.create({
-          file: audioFile,
-          model: 'whisper-1',
-          response_format: 'verbose_json',
-          timestamp_granularities: ['segment'],
-          ...(language && { language })
-        });
-      } else if (audioSource) {
-        // For URL-based audio/video, we need to download and convert to File object
-        try {
-          // Download the audio from the URL
-          const audioResponse = await fetch(audioSource);
-          if (!audioResponse.ok) {
-            throw new Error(`Failed to fetch audio: ${audioResponse.status}`);
-          }
-          
-          const audioBuffer = await audioResponse.arrayBuffer();
-          const audioFile = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
-          
-          // Transcribe the downloaded audio file
-          transcriptionResult = await openai.audio.transcriptions.create({
-            file: audioFile,
-            model: 'whisper-1',
-            response_format: 'verbose_json',
-            timestamp_granularities: ['segment'],
-            ...(language && { language })
-          });
-        } catch (openaiError) {
-          console.error('OpenAI transcription failed for URL:', openaiError);
-          
-          // Fallback: Provide helpful message about URL processing
-          transcriptionResult = {
-            text: `Video URL Transcription
 
-We're working on processing your video URL. The transcription service is currently being optimized for better URL support.
+        // Clean up temp file
+        await unlink(tempPath);
 
-Supported platforms:
-✅ YouTube (youtube.com, youtu.be)
-✅ Instagram (instagram.com)
-✅ TikTok (tiktok.com)
-✅ Twitter/X (twitter.com, x.com)
-✅ Direct video URLs
-
-Your URL is being processed. If you continue to see this message, please try:
-1. Ensure the URL is publicly accessible
-2. Try uploading the video file directly using the "Upload File" option
-3. Contact support if the issue persists
-
-We're continuously improving our transcription capabilities for all video platforms.`,
-            segments: [
-              {
-                id: 0,
-                seek: 0,
-                start: 0.0,
-                end: 5.0,
-                text: "Video URL Transcription",
-                tokens: [1, 2, 3, 4, 5],
-                temperature: 0.0,
-                avg_logprob: -0.5,
-                compression_ratio: 1.2,
-                no_speech_prob: 0.1
-              }
-            ]
-          };
-        }
-      }
-
-      const detectedLang = transcriptionResult?.language || language || 'auto';
-      const transcriptText = transcriptionResult?.text || 'No transcription available';
-      
-      // Calculate duration if available
-      const durationSeconds = transcriptionResult?.duration || 
-        (transcriptionResult?.segments && transcriptionResult.segments.length > 0 
-          ? Math.round(transcriptionResult.segments[transcriptionResult.segments.length - 1].end) 
-          : null);
-      
-      // Save to Supabase if user is logged in
-      let transcriptionId = null;
-      if (userId) {
+        // Save to Supabase
+        let transcriptionId = null;
         try {
           const { data, error } = await supabase
-            .from('transcriptions')
+            .from("transcriptions")
             .insert({
-              user_id: userId,
+              user_id: session.user.email,
               source_type: sourceType,
-              detected_language: detectedLang,
-              transcript_text: transcriptText,
-              audio_url: audioUrl || audioSource || null,
-              duration_seconds: durationSeconds
+              detected_language: language === 'auto' ? 'auto' : language,
+              transcript_text: transcription.text,
+              audio_url: null,
+              duration_seconds: null,
             })
-            .select('id')
+            .select("id")
             .single();
-          
-          if (!error && data) {
+
+          if (error) {
+            console.error("Error saving transcription:", error);
+          } else if (data) {
             transcriptionId = data.id;
-          } else if (error) {
-            console.error('Supabase insert error:', error);
           }
-        } catch (supabaseError) {
-          console.error('Failed to save transcription to Supabase:', supabaseError);
-          // Don't fail the whole request if Supabase fails
+        } catch (error) {
+          console.error("Error saving to Supabase:", error);
         }
+
+        return NextResponse.json({
+          success: true,
+          text: transcription.text,
+          detectedLanguage: language === 'auto' ? 'auto' : language,
+          requestedLanguage: language,
+          transcriptionId: transcriptionId,
+        });
+      } catch (error) {
+        // Clean up temp file on error
+        await unlink(tempPath);
+        throw error;
+      }
+    } else {
+      // Handle JSON requests (URL or base64 data)
+      const body = await request.json();
+      const audioData = body.audioData;
+      const audioSource = body.audioUrl;
+      language = body.language || 'auto';
+      sourceType = body.sourceType || 'upload';
+
+      if (!audioData && !audioSource) {
+        return NextResponse.json(
+          { error: "No audio data or URL provided" },
+          { status: 400 }
+        );
       }
 
-      return NextResponse.json({ 
-        success: true, 
-        text: transcriptText,
-        segments: transcriptionResult?.segments || [],
-        speakers: transcriptionResult?.segments?.map((segment, index) => ({
-          speaker: `Speaker ${index + 1}`,
-          text: segment.text,
-          start: segment.start,
-          end: segment.end
-        })) || [],
-        detectedLanguage: detectedLang,
-        requestedLanguage: language || 'auto',
-        transcriptionId: transcriptionId
-      });
-      
-    } catch (openaiError) {
-      console.error('OpenAI transcription error:', openaiError);
-      
-      // Fallback to demo if OpenAI fails
-      const demoTranscript = `Demo Transcription Result
+      let transcription;
+      let tempPath: string | null = null;
 
-This is a sample transcription result. In production, this would be the actual transcribed text from your audio or video file using OpenAI's Whisper model.
+      try {
+        if (audioData) {
+          // Convert base64 to buffer and save temporarily
+          const base64Data = audioData.split(',')[1];
+          const buffer = Buffer.from(base64Data, 'base64');
+          tempPath = path.join("/tmp", `${Date.now()}_audio.webm`);
+          await writeFile(tempPath, buffer);
 
-The transcription process includes:
-- High-quality speech recognition
-- Multiple language support
-- Automatic punctuation
-- Timestamp generation
-- Speaker detection
+          transcription = await openai.audio.transcriptions.create({
+            file: fs.createReadStream(tempPath),
+            model: "whisper-1",
+            language: language === 'auto' ? undefined : language,
+          });
+        } else if (audioSource) {
+          // Download audio from URL and save temporarily
+          const response = await fetch(audioSource);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch audio: ${response.status}`);
+          }
+          
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          tempPath = path.join("/tmp", `${Date.now()}_audio.mp3`);
+          await writeFile(tempPath, buffer);
 
-OpenAI Whisper provides excellent transcription accuracy and is much more reliable than other services.`;
+          transcription = await openai.audio.transcriptions.create({
+            file: fs.createReadStream(tempPath),
+            model: "whisper-1",
+            language: language === 'auto' ? undefined : language,
+          });
+        }
 
-      return NextResponse.json({ 
-        success: true, 
-        text: demoTranscript,
-        speakers: [],
-        detectedLanguage: language || 'en',
-        requestedLanguage: language || 'auto'
-      });
+        if (!transcription) {
+          return NextResponse.json(
+            { error: "Failed to transcribe audio" },
+            { status: 500 }
+          );
+        }
+
+        // Save to Supabase
+        let transcriptionId = null;
+        try {
+          const { data, error } = await supabase
+            .from("transcriptions")
+            .insert({
+              user_id: session.user.email,
+              source_type: sourceType,
+              detected_language: language === 'auto' ? 'auto' : language,
+              transcript_text: transcription.text,
+              audio_url: audioSource || null,
+              duration_seconds: null,
+            })
+            .select("id")
+            .single();
+
+          if (error) {
+            console.error("Error saving transcription:", error);
+          } else if (data) {
+            transcriptionId = data.id;
+          }
+        } catch (error) {
+          console.error("Error saving to Supabase:", error);
+        }
+
+        return NextResponse.json({
+          success: true,
+          text: transcription.text,
+          detectedLanguage: language === 'auto' ? 'auto' : language,
+          requestedLanguage: language,
+          transcriptionId: transcriptionId,
+        });
+      } finally {
+        // Clean up temp file
+        if (tempPath) {
+          try {
+            await unlink(tempPath);
+          } catch (error) {
+            console.error("Error cleaning up temp file:", error);
+          }
+        }
+      }
     }
-
   } catch (error) {
-    console.error('Transcriber API error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to transcribe audio. Please try again.' 
-    }, { status: 500 });
+    console.error("Transcription error:", error);
+    return NextResponse.json(
+      { error: "Failed to transcribe audio" },
+      { status: 500 }
+    );
   }
 }
