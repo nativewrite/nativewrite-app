@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import WaveformRecorder from '@/components/WaveformRecorder';
 import VideoURLUploader from '@/components/VideoURLUploader';
 import LanguageSelectModal from '@/components/ui/LanguageSelectModal';
-import NativeGPTChat from '@/components/NativeGPTChat';
+// NativeGPT is now globally available - no need to import
 
 export default function TranscriberPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -468,11 +468,7 @@ export default function TranscriberPage() {
         title="🌍 Choose Translation Language"
       />
 
-      {/* NativeGPT Chat Assistant - Always Visible */}
-      <NativeGPTChat
-        transcriptText={transcript}
-        transcriptionId={transcriptionId || undefined}
-      />
+      {/* NativeGPT is now globally available on all pages */}
     </main>
   );
 }
