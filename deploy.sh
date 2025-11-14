@@ -100,7 +100,7 @@ git branch -M main
 
 # 2. GitHub Setup (placeholder - user needs to create repo)
 print_status "GitHub repository setup..."
-print_warning "Please create a GitHub repository at: https://github.com/nativewrite/nativewrite-app.git"
+print_warning "Please create a GitHub repository at: ghttps://github.com/nativewrite/nativewrite-app.git"
 print_warning "Then run: git remote add origin https://github.com/nativewrite/nativewrite-app.git"
 print_warning "And: git push -u origin main"
 

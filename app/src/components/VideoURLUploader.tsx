@@ -4,10 +4,9 @@ import { useState } from 'react';
 
 type Props = {
   onTranscript: (text: string) => void;
-  language?: string;
 };
 
-export default function VideoURLUploader({ onTranscript, language = 'auto' }: Props) {
+export default function VideoURLUploader({ onTranscript }: Props) {
   const [videoUrl, setVideoUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'downloading' | 'transcribing' | 'done' | 'error'>('idle');
   const [error, setError] = useState<string>('');
@@ -17,34 +16,23 @@ export default function VideoURLUploader({ onTranscript, language = 'auto' }: Pr
     setError('');
     setStatus('downloading');
     try {
-      // Use universal URL transcription endpoint for any URL
-      console.log("Starting URL transcription:", { url: videoUrl, language });
-      
-      const res = await fetch('/api/transcribe/universal', {
+      // Kick off server-side flow
+      const res = await fetch('/api/transcribe/url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          url: videoUrl, 
-          language
-        })
+        body: JSON.stringify({ videoUrl })
       });
-      
-      console.log("URL transcription response status:", res.status);
 
       setStatus('transcribing');
 
       const data = await res.json();
-      console.log("URL transcription response data:", data);
-      
       if (!res.ok || !data?.success) {
-        console.error("URL transcription failed:", data);
         throw new Error(data?.error || 'Failed to transcribe');
       }
 
-      onTranscript(data.text || '');
+      onTranscript(data.transcript || '');
       setStatus('done');
     } catch (e: unknown) {
-      console.error("URL transcription error:", e);
       const message = e instanceof Error ? e.message : 'Failed to transcribe video';
       setError(message);
       setStatus('error');
@@ -60,7 +48,7 @@ export default function VideoURLUploader({ onTranscript, language = 'auto' }: Pr
         type="url"
         value={videoUrl}
         onChange={(e) => setVideoUrl(e.target.value)}
-        placeholder="Any audio/video URL: YouTube, TikTok, Instagram, Vimeo, MP3, MP4, etc."
+        placeholder="https://youtube.com/watch?v=... or TikTok/Instagram/Vimeo URL"
         className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-transparent"
       />
       <div className="flex items-center gap-3">

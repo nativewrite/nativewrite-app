@@ -35,3 +35,4 @@ export default function AnimatedModal({ isOpen, children, className }: Props) {
 }
 
 
+

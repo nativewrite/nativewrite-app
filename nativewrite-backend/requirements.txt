@@ -1,0 +1,11 @@
+flask
+flask-cors
+python-dotenv
+yt-dlp
+openai>=1.40.0
+pydub
+eventlet
+python-socketio[client]
+Flask-SocketIO
+werkzeug
+
