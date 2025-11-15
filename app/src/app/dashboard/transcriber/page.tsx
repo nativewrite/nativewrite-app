@@ -28,11 +28,6 @@ export default function TranscriberPage() {
     }
   };
 
-  const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setVideoUrl(event.target.value);
-    setInputType('url');
-  };
-
   const handleTranscribe = async () => {
     if (inputType === 'file' && !selectedFile) {
       alert('Please select an audio/video file first');

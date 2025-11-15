@@ -158,9 +158,9 @@ export async function POST(req: Request) {
           stream.pipe(writeStream);
         });
         audioDownloaded = true;
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('ytdl-core download failed:', error);
-        const errorMessage = error?.message || 'Unknown error';
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         
         // Clean up on failure
         try { if (fs.existsSync(audioPath)) { fs.unlinkSync(audioPath); } } catch {}
@@ -208,9 +208,14 @@ export async function POST(req: Request) {
       if (!transcript) {
         throw new Error('Empty transcription result');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('OpenAI transcription error:', error);
-      const errorMessage = error?.response?.data?.error?.message || error?.message || 'Unknown error';
+      let errorMessage = 'Unknown error';
+      if (axios.isAxiosError(error)) {
+        errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
       
       // Clean up before returning error
       try { if (fs.existsSync(audioPath)) { fs.unlinkSync(audioPath); } } catch {}
@@ -236,9 +241,9 @@ export async function POST(req: Request) {
       detectedLanguage: language || 'auto',
       requestedLanguage: language || 'auto'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Transcribe URL route error:', error);
-    const errorMessage = error?.message || 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
     // Cleanup on any error
     try { 
