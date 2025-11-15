@@ -5,7 +5,65 @@ import axios from 'axios';
 import FormData from 'form-data';
 import ytdl from 'ytdl-core';
 
+// Extract video ID from YouTube URL
+function extractVideoId(url: string): string | null {
+  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = url.match(regex);
+  return match ? match[1] : null;
+}
+
+// Try to get audio URL from alternative services
+async function getYouTubeAudioUrlAlternative(videoUrl: string): Promise<string | null> {
+  try {
+    const videoId = extractVideoId(videoUrl);
+    if (!videoId) return null;
+
+    // Try vevioz API
+    const response = await fetch(`https://api.vevioz.com/api/button/mp3/128/${videoId}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.url) return data.url;
+    }
+  } catch (error) {
+    console.error('Alternative YouTube service failed:', error);
+  }
+  return null;
+}
+
+// Try backend service if available
+async function tryBackendService(videoUrl: string): Promise<string | null> {
+  try {
+    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+    const backendApiKey = process.env.BACKEND_API_KEY;
+    
+    if (!backendUrl || !backendApiKey) {
+      return null;
+    }
+
+    const response = await fetch(`${backendUrl}/api/fetch-audio`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': backendApiKey,
+      },
+      body: JSON.stringify({ url: videoUrl }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.audio_url) {
+        return data.audio_url;
+      }
+    }
+  } catch (error) {
+    console.error('Backend service error:', error);
+  }
+  return null;
+}
+
 export async function POST(req: Request) {
+  let audioPath: string | null = null;
+  
   try {
     const { videoUrl, language } = await req.json();
     if (!videoUrl) {
@@ -29,23 +87,104 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    const audioPath = path.join('/tmp', `audio-${Date.now()}.mp3`);
+    audioPath = path.join('/tmp', `audio-${Date.now()}.mp3`);
+    let audioDownloaded = false;
     
-    // Download audio using ytdl-core
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const stream = ytdl(videoUrl, { quality: 'highestaudio', filter: 'audioonly' });
-        const writeStream = fs.createWriteStream(audioPath);
-        stream.pipe(writeStream);
-        writeStream.on('finish', () => resolve());
-        stream.on('error', reject);
-        writeStream.on('error', reject);
-      });
-    } catch {
-      return NextResponse.json({ error: 'Failed to fetch audio from YouTube.' }, { status: 500 });
+    // Strategy 1: Try backend service first (most reliable)
+    const backendAudioUrl = await tryBackendService(videoUrl);
+    if (backendAudioUrl) {
+      try {
+        console.log('Using backend service for audio:', backendAudioUrl);
+        const audioResponse = await fetch(backendAudioUrl);
+        if (audioResponse.ok) {
+          const audioBuffer = await audioResponse.arrayBuffer();
+          fs.writeFileSync(audioPath, Buffer.from(audioBuffer));
+          audioDownloaded = true;
+        }
+      } catch (error) {
+        console.error('Failed to download from backend service:', error);
+      }
+    }
+
+    // Strategy 2: Try alternative YouTube audio service
+    if (!audioDownloaded) {
+      const alternativeUrl = await getYouTubeAudioUrlAlternative(videoUrl);
+      if (alternativeUrl) {
+        try {
+          console.log('Using alternative service for audio:', alternativeUrl);
+          const audioResponse = await fetch(alternativeUrl);
+          if (audioResponse.ok) {
+            const audioBuffer = await audioResponse.arrayBuffer();
+            fs.writeFileSync(audioPath, Buffer.from(audioBuffer));
+            audioDownloaded = true;
+          }
+        } catch (error) {
+          console.error('Failed to download from alternative service:', error);
+        }
+      }
+    }
+
+    // Strategy 3: Fallback to ytdl-core (may fail in serverless)
+    if (!audioDownloaded) {
+      try {
+        console.log('Attempting ytdl-core download...');
+        await new Promise<void>((resolve, reject) => {
+          const stream = ytdl(videoUrl, { 
+            quality: 'highestaudio', 
+            filter: 'audioonly',
+            requestOptions: {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              }
+            }
+          });
+          const writeStream = fs.createWriteStream(audioPath);
+          
+          stream.on('error', (error) => {
+            console.error('ytdl-core stream error:', error);
+            reject(error);
+          });
+          
+          writeStream.on('error', (error) => {
+            console.error('File write error:', error);
+            reject(error);
+          });
+          
+          writeStream.on('finish', () => {
+            console.log('Audio download completed');
+            resolve();
+          });
+          
+          stream.pipe(writeStream);
+        });
+        audioDownloaded = true;
+      } catch (error: any) {
+        console.error('ytdl-core download failed:', error);
+        const errorMessage = error?.message || 'Unknown error';
+        
+        // Clean up on failure
+        try { if (fs.existsSync(audioPath)) { fs.unlinkSync(audioPath); } } catch {}
+        
+        return NextResponse.json({ 
+          error: `Failed to fetch audio from YouTube: ${errorMessage}. Please try uploading the video file directly or ensure the video is publicly accessible.`,
+          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        }, { status: 500 });
+      }
+    }
+
+    if (!audioDownloaded || !fs.existsSync(audioPath)) {
+      return NextResponse.json({ 
+        error: 'Failed to download audio from YouTube. Please try uploading the video file directly.' 
+      }, { status: 500 });
     }
 
     // Send to OpenAI Whisper API
+    if (!fs.existsSync(audioPath)) {
+      return NextResponse.json({ 
+        error: 'Audio file not found after download. Please try again.' 
+      }, { status: 500 });
+    }
+
     const fileStream = fs.createReadStream(audioPath);
     const formData = new FormData();
     formData.append('file', fileStream);
@@ -62,16 +201,34 @@ export async function POST(req: Request) {
           ...formData.getHeaders(),
         },
         maxBodyLength: Infinity,
+        maxContentLength: Infinity,
       });
       transcript = response.data?.text || '';
-    } catch {
+      
+      if (!transcript) {
+        throw new Error('Empty transcription result');
+      }
+    } catch (error: any) {
+      console.error('OpenAI transcription error:', error);
+      const errorMessage = error?.response?.data?.error?.message || error?.message || 'Unknown error';
+      
       // Clean up before returning error
       try { if (fs.existsSync(audioPath)) { fs.unlinkSync(audioPath); } } catch {}
-      return NextResponse.json({ error: 'Failed to transcribe audio. Please try again.' }, { status: 500 });
+      
+      return NextResponse.json({ 
+        error: `Failed to transcribe audio: ${errorMessage}. Please check your OpenAI API key and try again.`,
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      }, { status: 500 });
+    } finally {
+      // Cleanup temp file
+      try { 
+        if (audioPath && fs.existsSync(audioPath)) { 
+          fs.unlinkSync(audioPath); 
+        } 
+      } catch (cleanupError) {
+        console.error('Cleanup error:', cleanupError);
+      }
     }
-
-    // Cleanup temp file
-    try { if (fs.existsSync(audioPath)) { fs.unlinkSync(audioPath); } } catch {}
 
     return NextResponse.json({ 
       success: true, 
@@ -79,8 +236,21 @@ export async function POST(req: Request) {
       detectedLanguage: language || 'auto',
       requestedLanguage: language || 'auto'
     });
-  } catch {
-    return NextResponse.json({ error: 'Failed to transcribe video. Please try again.' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Transcribe URL route error:', error);
+    const errorMessage = error?.message || 'Unknown error';
+    
+    // Cleanup on any error
+    try { 
+      if (audioPath && fs.existsSync(audioPath)) { 
+        fs.unlinkSync(audioPath); 
+      } 
+    } catch {}
+    
+    return NextResponse.json({ 
+      error: `Failed to transcribe video: ${errorMessage}. Please try again.`,
+      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    }, { status: 500 });
   }
 }
 
