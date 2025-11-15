@@ -5,7 +5,7 @@ import VideoURLUploader from '@/components/VideoURLUploader';
 
 export default function TranscriberPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [videoUrl, setVideoUrl] = useState('');
+  const [videoUrl] = useState('');
   const [transcript, setTranscript] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [inputType, setInputType] = useState<'file' | 'url'>('file');

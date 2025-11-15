@@ -125,7 +125,7 @@ export async function POST(req: Request) {
     }
 
     // Strategy 3: Fallback to ytdl-core (may fail in serverless)
-    if (!audioDownloaded) {
+    if (!audioDownloaded && audioPath) {
       try {
         console.log('Attempting ytdl-core download...');
         await new Promise<void>((resolve, reject) => {
