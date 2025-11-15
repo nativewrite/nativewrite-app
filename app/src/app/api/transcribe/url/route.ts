@@ -128,6 +128,8 @@ export async function POST(req: Request) {
     if (!audioDownloaded && audioPath) {
       try {
         console.log('Attempting ytdl-core download...');
+        // Store in const to help TypeScript narrow the type
+        const finalAudioPath = audioPath;
         await new Promise<void>((resolve, reject) => {
           const stream = ytdl(videoUrl, { 
             quality: 'highestaudio', 
@@ -138,7 +140,7 @@ export async function POST(req: Request) {
               }
             }
           });
-          const writeStream = fs.createWriteStream(audioPath);
+          const writeStream = fs.createWriteStream(finalAudioPath);
           
           stream.on('error', (error) => {
             console.error('ytdl-core stream error:', error);
