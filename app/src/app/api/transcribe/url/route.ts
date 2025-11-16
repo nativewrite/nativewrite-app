@@ -87,6 +87,43 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // If a dedicated backend is configured, delegate full URL→transcript flow to it
+    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+    const backendApiKey = process.env.BACKEND_API_KEY;
+
+    if (backendUrl && backendApiKey) {
+      try {
+        console.log('Delegating URL transcription to backend:', backendUrl);
+
+        const backendResponse = await fetch(`${backendUrl}/api/transcribe-url`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': backendApiKey,
+          },
+          body: JSON.stringify({ url: videoUrl }),
+        });
+
+        const backendData = await backendResponse.json();
+
+        if (!backendResponse.ok || !backendData?.success) {
+          const backendError = backendData?.error || `Backend returned status ${backendResponse.status}`;
+          console.error('Backend transcription failed:', backendError);
+        } else {
+          // Successful backend transcription – return directly
+          return NextResponse.json({
+            success: true,
+            transcript: backendData.transcript || '',
+            fileId: backendData.file_id || backendData.fileId || null,
+            source: 'backend',
+          });
+        }
+      } catch (backendError) {
+        console.error('Error calling backend transcription service:', backendError);
+        // We intentionally fall through to local strategies as a fallback.
+      }
+    }
+
     audioPath = path.join('/tmp', `audio-${Date.now()}.mp3`);
     let audioDownloaded = false;
     
