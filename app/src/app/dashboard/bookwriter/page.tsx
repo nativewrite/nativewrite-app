@@ -25,7 +25,11 @@ export default function BookWriterPage() {
     
     if (savedChapters) {
       try {
-        setChapters(JSON.parse(savedChapters));
+        const parsed = JSON.parse(savedChapters);
+        setChapters(parsed);
+        if (parsed.length > 0 && !selectedChapterId) {
+          setSelectedChapterId(parsed[0].id);
+        }
       } catch (error) {
         console.error("Error loading chapters:", error);
       }
@@ -40,7 +44,7 @@ export default function BookWriterPage() {
       };
       setChapters([newChapter]);
       setSelectedChapterId(newChapter.id);
-      localStorage.removeItem("nativewrite_bookdraft"); // Clear after import
+      localStorage.removeItem("nativewrite_bookdraft");
     }
   }, []);
 
@@ -59,7 +63,7 @@ export default function BookWriterPage() {
     };
     setChapters([...chapters, newChapter]);
     setSelectedChapterId(newChapter.id);
-    toast.success("New chapter added!");
+    toast.success("New chapter added");
   };
 
   const deleteChapter = (id: string) => {
@@ -67,7 +71,7 @@ export default function BookWriterPage() {
     
     setChapters(chapters.filter(c => c.id !== id));
     if (selectedChapterId === id) {
-      setSelectedChapterId(null);
+      setSelectedChapterId(chapters.find(c => c.id !== id)?.id || null);
     }
     toast.success("Chapter deleted");
   };
@@ -83,7 +87,7 @@ export default function BookWriterPage() {
     }
 
     setIsGeneratingOutline(true);
-    toast.loading("Generating AI outline...");
+    const loadingToast = toast.loading("Generating outline...");
 
     try {
       const response = await fetch("/api/book/outliner", {
@@ -95,31 +99,33 @@ export default function BookWriterPage() {
         }),
       });
 
-      toast.dismiss();
+      toast.dismiss(loadingToast);
 
       if (!response.ok) {
-        throw new Error("Failed to generate outline");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to generate outline");
       }
 
       const data = await response.json();
 
-      if (data.chapters && Array.isArray(data.chapters)) {
+      if (data.chapters && Array.isArray(data.chapters) && data.chapters.length > 0) {
         const newChapters: Chapter[] = data.chapters.map((ch: { title: string; summary: string }) => ({
           id: crypto.randomUUID(),
-          title: ch.title,
-          summary: ch.summary,
+          title: ch.title || "Untitled Chapter",
+          summary: ch.summary || "",
           content: "",
         }));
         
         setChapters(newChapters);
         setSelectedChapterId(newChapters[0]?.id || null);
-        toast.success(`AI generated ${newChapters.length} chapters! 🎉`);
+        toast.success(`Generated ${newChapters.length} chapters`);
       } else {
-        toast.error("Failed to parse outline");
+        toast.error("Invalid response format");
       }
     } catch (error) {
       console.error("Outline generation error:", error);
-      toast.error("Failed to generate outline");
+      const message = error instanceof Error ? error.message : "Failed to generate outline";
+      toast.error(message);
     } finally {
       setIsGeneratingOutline(false);
     }
@@ -142,7 +148,7 @@ export default function BookWriterPage() {
     if (!chapter) return;
 
     setIsExpandingChapter(true);
-    toast.loading("Expanding chapter with AI...");
+    const loadingToast = toast.loading("Expanding chapter...");
 
     try {
       const response = await fetch("/api/book/expand", {
@@ -155,26 +161,28 @@ export default function BookWriterPage() {
         }),
       });
 
-      toast.dismiss();
+      toast.dismiss(loadingToast);
 
       if (!response.ok) {
-        throw new Error("Failed to expand chapter");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to expand chapter");
       }
 
       const data = await response.json();
 
-      if (data.text) {
+      if (data.text && data.text.trim()) {
         const separator = chapter.content ? "\n\n" : "";
         updateChapter(chapter.id, { 
-          content: chapter.content + separator + data.text 
+          content: chapter.content + separator + data.text.trim()
         });
-        toast.success(`Added ${data.wordCount || 300} words! ✨`);
+        toast.success(`Added ${data.wordCount || 0} words`);
       } else {
         toast.error("No content generated");
       }
     } catch (error) {
       console.error("Chapter expansion error:", error);
-      toast.error("Failed to expand chapter");
+      const message = error instanceof Error ? error.message : "Failed to expand chapter";
+      toast.error(message);
     } finally {
       setIsExpandingChapter(false);
     }
@@ -183,7 +191,6 @@ export default function BookWriterPage() {
   const handleOpenChapterChat = (chapter: Chapter) => {
     if (!chapter) return;
     
-    // Save chapter context for NativeGPT
     localStorage.setItem("nativewrite_gptcontext", JSON.stringify({
       chapterId: chapter.id,
       chapterTitle: chapter.title,
@@ -191,44 +198,60 @@ export default function BookWriterPage() {
       chapterContent: chapter.content,
     }));
     
-    toast.success("Opening chapter chat...");
-    
-    // Open NativeGPT in a new tab
+    toast.info("Opening chapter chat...");
     window.open(`/nativegpt?chapter=${encodeURIComponent(chapter.title)}`, "_blank");
   };
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-b from-[#f9fafb] to-[#e5e7eb]">
-      {/* Sidebar - Chapter Manager */}
-      <div className="w-80 bg-white/40 backdrop-blur-xl border-r border-white/20 p-4 flex flex-col shadow-xl">
+    <div className="flex min-h-screen bg-slate-50">
+      {/* Sidebar */}
+      <div className="w-80 bg-white border-r border-slate-200 p-6 flex flex-col shadow-sm">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
-            <span>📚</span>
-            <span>Book Writer</span>
-          </h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">Book Writer</h2>
           <p className="text-sm text-slate-600">AI-powered chapter management</p>
         </div>
 
         {/* AI Outliner */}
-        <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200">
-          <h3 className="text-sm font-semibold text-slate-800 mb-2">⚡ AI Book Outliner</h3>
+        <div className="mb-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
+          <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            AI Book Outliner
+          </h3>
           <textarea
             placeholder="Enter your book idea or theme..."
             value={ideaPrompt}
             onChange={(e) => setIdeaPrompt(e.target.value)}
-            className="w-full h-20 p-2 text-sm rounded-lg bg-white/80 outline-none border border-slate-200 focus:border-blue-400 transition-all resize-none"
+            className="w-full h-24 p-3 text-sm rounded-lg bg-white border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none"
+            disabled={isGeneratingOutline}
           />
           <button
             onClick={handleGenerateOutline}
-            disabled={isGeneratingOutline}
-            className="mt-2 w-full bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white rounded-lg py-2 hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-50 text-sm font-medium"
+            disabled={isGeneratingOutline || !ideaPrompt.trim()}
+            className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 px-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center justify-center gap-2"
           >
-            {isGeneratingOutline ? "Generating..." : "🧠 Generate Outline"}
+            {isGeneratingOutline ? (
+              <>
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Generating...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                Generate Outline
+              </>
+            )}
           </button>
         </div>
 
         {/* Chapters List */}
-        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
           <AnimatePresence mode="popLayout">
             {chapters.map((chapter, index) => (
               <motion.div
@@ -238,29 +261,38 @@ export default function BookWriterPage() {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2 }}
                 onClick={() => setSelectedChapterId(chapter.id)}
-                className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                className={`p-3 rounded-lg cursor-pointer transition-all ${
                   selectedChapterId === chapter.id
-                    ? "bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white shadow-lg scale-105"
-                    : "bg-white/60 hover:bg-white/80 text-slate-800"
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-900"
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm truncate">{chapter.title}</div>
                     {chapter.summary && (
-                      <div className="text-xs opacity-80 mt-1 truncate">{chapter.summary}</div>
+                      <div className={`text-xs mt-1 truncate ${
+                        selectedChapterId === chapter.id ? "text-blue-100" : "text-slate-600"
+                      }`}>
+                        {chapter.summary}
+                      </div>
                     )}
                   </div>
-                  <div className="flex flex-col gap-1 ml-2">
+                  <div className="flex flex-col gap-0.5 flex-shrink-0">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         moveChapter(index, 'up');
                       }}
                       disabled={index === 0}
-                      className="text-xs opacity-60 hover:opacity-100 disabled:opacity-30"
+                      className={`text-xs p-0.5 rounded hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed ${
+                        selectedChapterId === chapter.id ? "text-white" : "text-slate-500"
+                      }`}
+                      title="Move up"
                     >
-                      ▲
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                      </svg>
                     </button>
                     <button
                       onClick={(e) => {
@@ -268,9 +300,14 @@ export default function BookWriterPage() {
                         moveChapter(index, 'down');
                       }}
                       disabled={index === chapters.length - 1}
-                      className="text-xs opacity-60 hover:opacity-100 disabled:opacity-30"
+                      className={`text-xs p-0.5 rounded hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed ${
+                        selectedChapterId === chapter.id ? "text-white" : "text-slate-500"
+                      }`}
+                      title="Move down"
                     >
-                      ▼
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -282,41 +319,49 @@ export default function BookWriterPage() {
         {/* Add Chapter Button */}
         <button
           onClick={addChapter}
-          className="mt-4 w-full bg-white/60 hover:bg-white/80 text-slate-800 rounded-lg py-3 transition-all duration-200 border border-slate-300 font-medium shadow-sm hover:shadow-md"
+          className="mt-4 w-full bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-lg py-3 px-4 transition-colors border border-slate-300 font-medium text-sm flex items-center justify-center gap-2"
         >
-          ➕ Add Chapter
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Chapter
         </button>
       </div>
 
       {/* Main Editor Area */}
-      <div className="flex-1 p-8">
+      <div className="flex-1 flex flex-col">
         {currentChapter ? (
           <motion.div
             key={currentChapter.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="h-full flex flex-col"
+            className="flex-1 flex flex-col p-8"
           >
             {/* Chapter Header */}
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex-1">
-                <input
-                  value={currentChapter.title}
-                  onChange={(e) => updateChapter(currentChapter.id, { title: e.target.value })}
-                  className="text-3xl font-bold bg-transparent border-b-2 border-slate-300 focus:border-[#1E3A8A] outline-none transition-all w-full text-slate-900"
-                  placeholder="Chapter Title"
-                />
-                {currentChapter.summary && (
-                  <p className="text-sm text-slate-600 mt-2 italic">{currentChapter.summary}</p>
-                )}
+            <div className="mb-6">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div className="flex-1">
+                  <input
+                    value={currentChapter.title}
+                    onChange={(e) => updateChapter(currentChapter.id, { title: e.target.value })}
+                    className="text-3xl font-bold bg-transparent border-b-2 border-transparent focus:border-blue-500 outline-none transition-colors w-full text-slate-900 pb-2"
+                    placeholder="Chapter Title"
+                  />
+                  {currentChapter.summary && (
+                    <p className="text-sm text-slate-600 mt-3 italic">{currentChapter.summary}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => deleteChapter(currentChapter.id)}
+                  className="px-4 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-medium flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Delete
+                </button>
               </div>
-              <button
-                onClick={() => deleteChapter(currentChapter.id)}
-                className="ml-4 px-4 py-2 rounded-lg bg-red-500/20 text-red-600 hover:bg-red-500/30 transition-all duration-200"
-              >
-                🗑️ Delete
-              </button>
             </div>
 
             {/* Chapter Content Editor */}
@@ -324,7 +369,7 @@ export default function BookWriterPage() {
               <textarea
                 value={currentChapter.content}
                 onChange={(e) => updateChapter(currentChapter.id, { content: e.target.value })}
-                className="w-full h-full p-6 bg-white/80 backdrop-blur-sm rounded-xl shadow-md border border-slate-200 outline-none focus:ring-2 focus:ring-[#1E3A8A] focus:border-transparent transition-all resize-none text-slate-900 leading-relaxed"
+                className="w-full h-full p-6 bg-white rounded-lg shadow-sm border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none text-slate-900 leading-relaxed"
                 placeholder="Start writing your chapter here...
 
 You can paste content from NativeGPT or write directly. The content auto-saves as you type."
@@ -336,15 +381,33 @@ You can paste content from NativeGPT or write directly. The content auto-saves a
               <button
                 onClick={() => handleExpandChapter(currentChapter)}
                 disabled={isExpandingChapter}
-                className="px-5 py-2.5 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white rounded-lg hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-50 font-medium"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm flex items-center gap-2"
               >
-                {isExpandingChapter ? "⚡ Expanding..." : "⚡ Expand Chapter with AI"}
+                {isExpandingChapter ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Expanding...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Expand Chapter with AI
+                  </>
+                )}
               </button>
               <button
                 onClick={() => handleOpenChapterChat(currentChapter)}
-                className="px-5 py-2.5 bg-white/60 hover:bg-white/80 text-slate-800 rounded-lg border border-slate-300 transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                className="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-900 rounded-lg border border-slate-300 transition-colors font-medium text-sm flex items-center gap-2"
               >
-                💬 Open Chapter Chat
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Open Chapter Chat
               </button>
             </div>
 
@@ -362,53 +425,35 @@ You can paste content from NativeGPT or write directly. The content auto-saves a
             </div>
           </motion.div>
         ) : (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-6xl mb-4">✍️</div>
-              <h2 className="text-2xl font-semibold text-slate-800 mb-2">No Chapter Selected</h2>
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center max-w-md">
+              <div className="mb-6">
+                <svg className="w-24 h-24 mx-auto text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-semibold text-slate-900 mb-2">No Chapter Selected</h2>
               <p className="text-slate-600 mb-6">
                 Generate an AI outline or add a chapter to begin writing
               </p>
               <button
                 onClick={addChapter}
-                className="px-6 py-3 bg-gradient-to-r from-[#1E3A8A] to-[#00B4D8] text-white rounded-lg hover:scale-105 transition-all duration-200 shadow-lg"
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm font-medium inline-flex items-center gap-2"
               >
-                ➕ Create First Chapter
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Create First Chapter
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Toast Notifications */}
       <Toaster 
         position="top-right"
         theme="light"
-        toastOptions={{
-          style: {
-            background: 'rgba(255, 255, 255, 0.9)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(30, 58, 138, 0.2)',
-          },
-        }}
       />
-
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(0, 0, 0, 0.05);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(0, 0, 0, 0.2);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(0, 0, 0, 0.3);
-        }
-      `}</style>
     </div>
   );
 }
