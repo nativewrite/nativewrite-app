@@ -14,68 +14,100 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: 'system',
-          content: `You are an expert book planner and writing coach. Create a detailed chapter-by-chapter outline for a book based on the provided idea.
+          content: `You are an expert book planner. Create a chapter outline for a book.
 
-Generate ${chapterCount} chapters with:
-- Clear, descriptive chapter titles
-- Brief summaries (1-2 sentences) describing what happens in each chapter
+CRITICAL: You MUST return ONLY a valid JSON array. No markdown, no code blocks, no explanations.
 
-Return ONLY a valid JSON array in this exact format:
+Required format (JSON array):
 [
-  {"title": "Chapter Title", "summary": "Brief description"},
-  {"title": "Chapter Title", "summary": "Brief description"}
+  {"title": "Chapter 1 Title", "summary": "What happens in this chapter"},
+  {"title": "Chapter 2 Title", "summary": "What happens in this chapter"}
 ]
 
-Do not include any markdown, code blocks, or additional text. Only return the JSON array.`,
+Generate exactly ${chapterCount} chapters. Each chapter must have a "title" and "summary" field.`,
         },
         {
           role: 'user',
-          content: `Create a chapter outline for a book about: ${idea}`,
+          content: `Create a ${chapterCount}-chapter outline for a book about: ${idea}
+
+Return the JSON array now:`,
         },
       ],
-      temperature: 0.8,
+      temperature: 0.7,
       max_tokens: 2000,
     });
 
     const content = completion.choices[0]?.message?.content || '';
     
+    if (!content.trim()) {
+      return NextResponse.json({ error: 'Empty response from AI' }, { status: 500 });
+    }
+
     // Try to parse JSON response
-    let parsed;
+    let chapters: Array<{ title: string; summary: string }> = [];
+    
     try {
-      // If response is wrapped in markdown code blocks, extract JSON
-      const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/) || content.match(/(\{[\s\S]*\})/);
-      const jsonString = jsonMatch ? jsonMatch[1] : content;
-      parsed = JSON.parse(jsonString);
-    } catch {
-      // If direct JSON parsing fails, try to extract chapters from text
+      // First, try to extract JSON from markdown code blocks
+      let jsonString = content.trim();
+      
+      // Remove markdown code blocks if present
+      const codeBlockMatch = jsonString.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch) {
+        jsonString = codeBlockMatch[1].trim();
+      }
+      
+      // Try parsing as JSON
+      const parsed = JSON.parse(jsonString);
+      
+      // Handle different response formats
+      if (Array.isArray(parsed)) {
+        chapters = parsed;
+      } else if (parsed.chapters && Array.isArray(parsed.chapters)) {
+        chapters = parsed.chapters;
+      } else if (parsed.chapterList && Array.isArray(parsed.chapterList)) {
+        chapters = parsed.chapterList;
+      } else {
+        throw new Error('Response is not in expected format');
+      }
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Content received:', content.substring(0, 500));
+      
+      // Fallback: try to extract chapters from text format
       const lines = content.split('\n').filter(line => line.trim());
-      const chapters: Array<{ title: string; summary: string }> = [];
       
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
-        if (line.match(/^(Chapter|chapter|\d+)/)) {
-          const titleMatch = line.match(/(?:Chapter\s*\d+[:\-]?\s*)?(.+)/);
-          if (titleMatch) {
-            const title = titleMatch[1].trim();
-            const summary = lines[i + 1]?.trim() || '';
-            chapters.push({ title, summary });
-            i++; // Skip next line as it's the summary
+        // Look for chapter patterns
+        const chapterMatch = line.match(/(?:Chapter\s*)?(\d+)[:\-\.]\s*(.+)/i) || 
+                           line.match(/^(\d+)\.\s*(.+)/) ||
+                           line.match(/^(.+?):\s*(.+)/);
+        
+        if (chapterMatch) {
+          const title = chapterMatch[2] || chapterMatch[1] || line;
+          const summary = lines[i + 1]?.trim() || '';
+          if (title && title.length > 0) {
+            chapters.push({ title: title.trim(), summary: summary.trim() });
+            if (summary) i++; // Skip summary line
           }
         }
       }
       
-      if (chapters.length > 0) {
-        return NextResponse.json({ chapters });
+      // If still no chapters found, try a simpler pattern
+      if (chapters.length === 0) {
+        const numberedLines = lines.filter(line => /^\d+[\.\:\-]/.test(line.trim()));
+        chapters = numberedLines.slice(0, chapterCount).map(line => ({
+          title: line.replace(/^\d+[\.\:\-]\s*/, '').trim(),
+          summary: ''
+        }));
       }
-      
-      throw new Error('Failed to parse outline');
     }
 
-    // Handle different response formats
-    const chapters = parsed.chapters || parsed.chapterList || (Array.isArray(parsed) ? parsed : []);
-
     if (!Array.isArray(chapters) || chapters.length === 0) {
-      return NextResponse.json({ error: 'Invalid outline format' }, { status: 500 });
+      console.error('Failed to extract chapters. Content:', content.substring(0, 500));
+      return NextResponse.json({ 
+        error: 'Could not parse chapter outline. Please try again with a different book idea.' 
+      }, { status: 500 });
     }
 
     return NextResponse.json({ 
