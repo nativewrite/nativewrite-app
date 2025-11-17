@@ -27,7 +27,7 @@ export default function BookWriterPage() {
       try {
         const parsed = JSON.parse(savedChapters);
         setChapters(parsed);
-        if (parsed.length > 0 && !selectedChapterId) {
+        if (parsed.length > 0) {
           setSelectedChapterId(parsed[0].id);
         }
       } catch (error) {
@@ -46,6 +46,7 @@ export default function BookWriterPage() {
       setSelectedChapterId(newChapter.id);
       localStorage.removeItem("nativewrite_bookdraft");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Save chapters to localStorage whenever they change

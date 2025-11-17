@@ -80,7 +80,7 @@ Do not include any markdown, code blocks, or additional text. Only return the JS
 
     return NextResponse.json({ 
       success: true,
-      chapters: chapters.map((ch: any) => ({
+      chapters: chapters.map((ch: { title?: string; chapterTitle?: string; summary?: string; description?: string; chapterSummary?: string }) => ({
         title: ch.title || ch.chapterTitle || 'Untitled Chapter',
         summary: ch.summary || ch.description || ch.chapterSummary || '',
       })),
