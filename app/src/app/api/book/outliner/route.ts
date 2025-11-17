@@ -43,7 +43,7 @@ Do not include any markdown, code blocks, or additional text. Only return the JS
     let parsed;
     try {
       // If response is wrapped in markdown code blocks, extract JSON
-      const jsonMatch = content.match(/```(?:json)?\s*(\{.*\})\s*```/s) || content.match(/(\{.*\})/s);
+      const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/) || content.match(/(\{[\s\S]*\})/);
       const jsonString = jsonMatch ? jsonMatch[1] : content;
       parsed = JSON.parse(jsonString);
     } catch {

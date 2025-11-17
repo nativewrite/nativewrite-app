@@ -46,7 +46,6 @@ export default function BookWriterPage() {
       setSelectedChapterId(newChapter.id);
       localStorage.removeItem("nativewrite_bookdraft");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Save chapters to localStorage whenever they change
