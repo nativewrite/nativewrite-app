@@ -1,15 +1,32 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import VideoURLUploader from '@/components/VideoURLUploader';
+import WaveformRecorder from '@/components/WaveformRecorder';
 
-export default function TranscriberPage() {
+function TranscriberContent() {
+  const searchParams = useSearchParams();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [videoUrl] = useState('');
   const [transcript, setTranscript] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [inputType, setInputType] = useState<'file' | 'url'>('file');
+  const [inputType, setInputType] = useState<'file' | 'url' | 'record'>('file');
+  const [recordedAudio, setRecordedAudio] = useState<{ blob: Blob; url: string } | null>(null);
+  const [translatedText, setTranslatedText] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [targetLanguage, setTargetLanguage] = useState('es');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check URL params for mode
+  useEffect(() => {
+    const mode = searchParams?.get('mode');
+    if (mode === 'record') {
+      setInputType('record');
+    } else if (mode === 'url') {
+      setInputType('url');
+    }
+  }, [searchParams]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -105,6 +122,54 @@ export default function TranscriberPage() {
     URL.revokeObjectURL(url);
   };
 
+  const downloadAudio = () => {
+    if (recordedAudio) {
+      const a = document.createElement('a');
+      a.href = recordedAudio.url;
+      a.download = `recording_${new Date().toISOString()}.webm`;
+      a.click();
+    } else if (selectedFile) {
+      const url = URL.createObjectURL(selectedFile);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = selectedFile.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleTranslate = async () => {
+    if (!transcript.trim()) {
+      alert('Please transcribe audio first');
+      return;
+    }
+
+    setIsTranslating(true);
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: transcript, targetLanguage }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setTranslatedText(data.translatedText);
+      } else {
+        alert(data.error || 'Failed to translate text');
+      }
+    } catch {
+      alert('Failed to translate text. Please try again.');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleRecordedAudio = (audio: { blob: Blob; url: string }) => {
+    setRecordedAudio(audio);
+  };
+
   return (
     <main className="min-h-screen bg-[#F9FAFB] pt-20 pb-20">
       <div className="mx-auto max-w-4xl px-6">
@@ -137,6 +202,16 @@ export default function TranscriberPage() {
               >
                 Video URL
               </button>
+              <button
+                onClick={() => setInputType('record')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  inputType === 'record' 
+                    ? 'bg-[#1E3A8A] text-white' 
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                🎙 Record & Scribe
+              </button>
             </div>
 
             {inputType === 'file' ? (
@@ -167,25 +242,32 @@ export default function TranscriberPage() {
                   className="hidden"
                 />
               </div>
-            ) : (
+            ) : inputType === 'url' ? (
               <VideoURLUploader onTranscript={setTranscript} />
+            ) : (
+              <WaveformRecorder 
+                onTranscript={setTranscript}
+                onAudioRecorded={handleRecordedAudio}
+              />
             )}
 
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-slate-500">
-                {inputType === 'file' 
-                  ? `File: ${selectedFile ? selectedFile.name : 'No file selected'}`
-                  : `URL: ${videoUrl ? 'Entered' : 'No URL entered'}`
-                }
+            {inputType !== 'record' && (
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-slate-500">
+                  {inputType === 'file' 
+                    ? `File: ${selectedFile ? selectedFile.name : 'No file selected'}`
+                    : `URL: ${videoUrl ? 'Entered' : 'No URL entered'}`
+                  }
+                </div>
+                <button 
+                  onClick={handleTranscribe}
+                  disabled={isLoading || (inputType === 'file' ? !selectedFile : !videoUrl.trim())}
+                  className="px-6 py-3 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#1E40AF] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Transcribing...' : 'Start Transcription'}
+                </button>
               </div>
-              <button 
-                onClick={handleTranscribe}
-                disabled={isLoading || (inputType === 'file' ? !selectedFile : !videoUrl.trim())}
-                className="px-6 py-3 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#1E40AF] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Transcribing...' : 'Start Transcription'}
-              </button>
-            </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -200,7 +282,7 @@ export default function TranscriberPage() {
               />
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               <button 
                 onClick={copyTranscript}
                 disabled={!transcript}
@@ -222,10 +304,109 @@ export default function TranscriberPage() {
               >
                 Download as SRT
               </button>
+              {(recordedAudio || selectedFile) && (
+                <button 
+                  onClick={downloadAudio}
+                  className="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Download Audio
+                </button>
+              )}
             </div>
+
+            {/* Translation Section */}
+            {transcript && (
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Translate Transcript</h3>
+                <div className="flex gap-4 mb-4">
+                  <select
+                    value={targetLanguage}
+                    onChange={(e) => setTargetLanguage(e.target.value)}
+                    className="px-4 py-2 border border-slate-200 rounded-lg bg-white"
+                  >
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="it">Italian</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="ru">Russian</option>
+                    <option value="ja">Japanese</option>
+                    <option value="ko">Korean</option>
+                    <option value="zh">Chinese</option>
+                    <option value="ar">Arabic</option>
+                    <option value="hi">Hindi</option>
+                    <option value="nl">Dutch</option>
+                    <option value="pl">Polish</option>
+                    <option value="tr">Turkish</option>
+                  </select>
+                  <button
+                    onClick={handleTranslate}
+                    disabled={isTranslating || !transcript}
+                    className="px-6 py-2 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#1E40AF] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isTranslating ? 'Translating...' : 'Translate'}
+                  </button>
+                </div>
+                {translatedText && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Translated Text
+                    </label>
+                    <textarea
+                      rows={6}
+                      value={translatedText}
+                      onChange={(e) => setTranslatedText(e.target.value)}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-lg bg-slate-50"
+                      placeholder="Translated text will appear here..."
+                    />
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(translatedText);
+                          alert('Copied to clipboard!');
+                        }}
+                        className="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-sm"
+                      >
+                        Copy Translation
+                      </button>
+                      <button
+                        onClick={() => {
+                          const blob = new Blob([translatedText], { type: 'text/plain' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `translation_${targetLanguage}.txt`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-sm"
+                      >
+                        Download Translation
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
     </main>
+  );
+}
+
+export default function TranscriberPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-[#F9FAFB] pt-20 pb-20">
+        <div className="mx-auto max-w-4xl px-6">
+          <div className="text-center py-20">
+            <p className="text-slate-600">Loading...</p>
+          </div>
+        </div>
+      </main>
+    }>
+      <TranscriberContent />
+    </Suspense>
   );
 }

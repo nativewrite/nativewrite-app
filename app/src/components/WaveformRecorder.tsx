@@ -4,10 +4,11 @@ import { useState, useRef, useEffect } from 'react';
 
 type Props = {
   onTranscript: (text: string) => void;
+  onAudioRecorded?: (audio: { blob: Blob; url: string }) => void;
   language?: string;
 };
 
-export default function WaveformRecorder({ onTranscript, language = 'auto' }: Props) {
+export default function WaveformRecorder({ onTranscript, onAudioRecorded, language = 'auto' }: Props) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -127,7 +128,11 @@ export default function WaveformRecorder({ onTranscript, language = 'auto' }: Pr
     // Process the audio
     const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
     const url = URL.createObjectURL(audioBlob);
-    setRecordedAudio({ blob: audioBlob, url });
+    const audioData = { blob: audioBlob, url };
+    setRecordedAudio(audioData);
+    if (onAudioRecorded) {
+      onAudioRecorded(audioData);
+    }
     await transcribeAudio(audioBlob);
   };
 
