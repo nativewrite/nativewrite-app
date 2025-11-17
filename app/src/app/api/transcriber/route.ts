@@ -96,46 +96,77 @@ function extractVideoId(url: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { audioUrl, audioData } = await req.json();
+    // Check if this is a FormData upload (from WaveformRecorder)
+    const contentType = req.headers.get('content-type') || '';
+    let audioFile: File | null = null;
+    let audioUrl: string | null = null;
+    let audioData: string | null = null;
+    let language = 'auto';
 
-    if (!audioUrl && !audioData) {
-      return NextResponse.json({ error: 'Audio URL or data is required' }, { status: 400 });
-    }
+    if (contentType.includes('multipart/form-data')) {
+      // Handle file upload from WaveformRecorder
+      const formData = await req.formData();
+      audioFile = formData.get('audio') as File | null;
+      const langParam = formData.get('language');
+      if (langParam) {
+        language = langParam.toString();
+      }
 
-    let audioSource = audioUrl;
-    
-    // Handle any video URL - try to extract audio and transcribe
-    if (audioUrl) {
-      try {
-        console.log('Processing video URL:', audioUrl);
-        
-        // Try to get audio stream from various video platforms
-        const audioStreamUrl = await getAudioStreamUrl(audioUrl);
-        
-        if (audioStreamUrl) {
-          // Use the audio stream URL for transcription
-          audioSource = audioStreamUrl;
-        } else {
-          // Fallback: try the original URL
-          audioSource = audioUrl;
-        }
-      } catch {
-        return NextResponse.json({ 
-          error: 'Failed to process video URL' 
-        }, { status: 500 });
+      if (!audioFile) {
+        return NextResponse.json({ error: 'Audio file is required' }, { status: 400 });
+      }
+    } else {
+      // Handle JSON request (from other sources)
+      const body = await req.json();
+      audioUrl = body.audioUrl || null;
+      audioData = body.audioData || null;
+      language = body.language || 'auto';
+
+      if (!audioUrl && !audioData) {
+        return NextResponse.json({ error: 'Audio URL or data is required' }, { status: 400 });
       }
     }
+
+    // Process audio source for URL-based requests
+    let audioSource: string | null = null;
     
-    // If we have base64 audio data, upload it first
-    if (audioData && !audioUrl) {
-      try {
-        // For demo purposes, we'll simulate a successful upload
-        // In production, you'd upload to a cloud storage service
-        audioSource = `https://example.com/audio/${Date.now()}.mp3`;
-      } catch {
-        return NextResponse.json({ 
-          error: 'Failed to upload audio file' 
-        }, { status: 500 });
+    if (!audioFile) {
+      // Handle JSON-based requests (URL or base64)
+      audioSource = audioUrl;
+      
+      // Handle any video URL - try to extract audio and transcribe
+      if (audioUrl) {
+        try {
+          console.log('Processing video URL:', audioUrl);
+          
+          // Try to get audio stream from various video platforms
+          const audioStreamUrl = await getAudioStreamUrl(audioUrl);
+          
+          if (audioStreamUrl) {
+            // Use the audio stream URL for transcription
+            audioSource = audioStreamUrl;
+          } else {
+            // Fallback: try the original URL
+            audioSource = audioUrl;
+          }
+        } catch {
+          return NextResponse.json({ 
+            error: 'Failed to process video URL' 
+          }, { status: 500 });
+        }
+      }
+      
+      // If we have base64 audio data, upload it first
+      if (audioData && !audioUrl) {
+        try {
+          // For demo purposes, we'll simulate a successful upload
+          // In production, you'd upload to a cloud storage service
+          audioSource = `https://example.com/audio/${Date.now()}.mp3`;
+        } catch {
+          return NextResponse.json({ 
+            error: 'Failed to upload audio file' 
+          }, { status: 500 });
+        }
       }
     }
 
@@ -143,17 +174,27 @@ export async function POST(req: NextRequest) {
     try {
       let transcriptionResult;
       
-      if (audioData) {
+      // Handle direct file upload (from WaveformRecorder)
+      if (audioFile) {
+        transcriptionResult = await openai.audio.transcriptions.create({
+          file: audioFile,
+          model: 'whisper-1',
+          language: language !== 'auto' ? language : undefined,
+          response_format: 'verbose_json',
+          timestamp_granularities: ['segment']
+        });
+      } else if (audioData) {
         // Convert base64 to buffer for OpenAI
         const base64Data = audioData.split(',')[1];
         const audioBuffer = Buffer.from(base64Data, 'base64');
         
         // Create a file-like object for OpenAI
-        const audioFile = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
+        const fileForOpenAI = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
         
         transcriptionResult = await openai.audio.transcriptions.create({
-          file: audioFile,
+          file: fileForOpenAI,
           model: 'whisper-1',
+          language: language !== 'auto' ? language : undefined,
           response_format: 'verbose_json',
           timestamp_granularities: ['segment']
         });
@@ -167,12 +208,13 @@ export async function POST(req: NextRequest) {
           }
           
           const audioBuffer = await audioResponse.arrayBuffer();
-          const audioFile = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
+          const fileForOpenAI = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
           
           // Transcribe the downloaded audio file
           transcriptionResult = await openai.audio.transcriptions.create({
-            file: audioFile,
+            file: fileForOpenAI,
             model: 'whisper-1',
+            language: language !== 'auto' ? language : undefined,
             response_format: 'verbose_json',
             timestamp_granularities: ['segment']
           });
