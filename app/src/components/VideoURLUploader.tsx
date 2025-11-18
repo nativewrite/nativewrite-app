@@ -78,7 +78,7 @@ export default function VideoURLUploader({ onTranscript }: Props) {
           {(error.includes('upload') || error.includes('Upload')) && (
             <div className="pt-2 border-t border-amber-200">
               <p className="text-xs text-amber-700">
-                <strong>Quick solution:</strong> Switch to the "Upload File" tab and upload the audio file directly.
+                <strong>Quick solution:</strong> Switch to the &quot;Upload File&quot; tab and upload the audio file directly.
               </p>
             </div>
           )}
