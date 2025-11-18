@@ -72,10 +72,16 @@ export default function VideoURLUploader({ onTranscript }: Props) {
         )}
       </div>
       {error && (
-        <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm">
-          {error.includes('blocks direct downloads')
-            ? "This platform doesn’t allow direct transcription. Please upload your file instead."
-            : error}
+        <div className="p-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm space-y-2">
+          <div className="font-medium">Unable to download from YouTube</div>
+          <div className="text-xs text-amber-700 whitespace-pre-line">{error}</div>
+          {(error.includes('upload') || error.includes('Upload')) && (
+            <div className="pt-2 border-t border-amber-200">
+              <p className="text-xs text-amber-700">
+                <strong>Quick solution:</strong> Switch to the "Upload File" tab and upload the audio file directly.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

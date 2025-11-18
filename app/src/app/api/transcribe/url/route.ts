@@ -18,11 +18,55 @@ async function getYouTubeAudioUrlAlternative(videoUrl: string): Promise<string |
     const videoId = extractVideoId(videoUrl);
     if (!videoId) return null;
 
-    // Try vevioz API
-    const response = await fetch(`https://api.vevioz.com/api/button/mp3/128/${videoId}`);
-    if (response.ok) {
-      const data = await response.json();
-      if (data.url) return data.url;
+    // Try multiple alternative services
+    const services = [
+      // Service 1: vevioz
+      async () => {
+        const response = await fetch(`https://api.vevioz.com/api/button/mp3/128/${videoId}`, {
+          signal: AbortSignal.timeout(5000)
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.url) return data.url;
+        }
+        return null;
+      },
+      // Service 2: y2mate alternative
+      async () => {
+        try {
+          const response = await fetch(`https://www.y2mate.com/mates/en68/analyze/ajax`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `url=${encodeURIComponent(videoUrl)}&q_auto=0&ajax=1`,
+            signal: AbortSignal.timeout(5000)
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.links && data.links.mp3) {
+              return data.links.mp3[0]?.url || null;
+            }
+          }
+        } catch {
+          // Service unavailable, continue
+        }
+        return null;
+      },
+    ];
+
+    // Try each service sequentially
+    for (const service of services) {
+      try {
+        const url = await service();
+        if (url) {
+          console.log('Alternative service succeeded');
+          return url;
+        }
+      } catch (error) {
+        console.error('Service attempt failed:', error);
+        continue;
+      }
     }
   } catch (error) {
     console.error('Alternative YouTube service failed:', error);
@@ -205,8 +249,16 @@ export async function POST(req: Request) {
         try { if (fs.existsSync(audioPath)) { fs.unlinkSync(audioPath); } } catch {}
         
         return NextResponse.json({ 
-          error: `Failed to fetch audio from YouTube: ${errorMessage}. Please try uploading the video file directly or ensure the video is publicly accessible.`,
-          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+          error: `YouTube audio download is currently unavailable. This is a known limitation when running in serverless environments. 
+
+To transcribe YouTube videos:
+1. Use the "Upload File" tab instead
+2. Download the video/audio using a tool like yt-dlp or a YouTube downloader
+3. Upload the audio file directly
+
+Alternatively, configure a backend service (BACKEND_URL) with yt-dlp for automatic YouTube transcription.`,
+          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+          suggestion: 'upload_file'
         }, { status: 500 });
       }
     }
