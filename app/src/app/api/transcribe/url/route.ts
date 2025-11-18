@@ -131,13 +131,13 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // If a dedicated backend is configured, delegate full URL→transcript flow to it
+    // PRIORITY 1: If backend is configured, use it for automatic transcription
     const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
     const backendApiKey = process.env.BACKEND_API_KEY;
 
     if (backendUrl && backendApiKey) {
       try {
-        console.log('Delegating URL transcription to backend:', backendUrl);
+        console.log('Using backend service for automatic transcription:', backendUrl);
 
         const backendResponse = await fetch(`${backendUrl}/api/transcribe-url`, {
           method: 'POST',
@@ -146,27 +146,43 @@ export async function POST(req: Request) {
             'X-API-Key': backendApiKey,
           },
           body: JSON.stringify({ url: videoUrl }),
+          signal: AbortSignal.timeout(300000), // 5 minute timeout
         });
 
         const backendData = await backendResponse.json();
 
-        if (!backendResponse.ok || !backendData?.success) {
-          const backendError = backendData?.error || `Backend returned status ${backendResponse.status}`;
-          console.error('Backend transcription failed:', backendError);
-        } else {
+        if (backendResponse.ok && backendData?.success && backendData?.transcript) {
           // Successful backend transcription – return directly
+          console.log('Backend transcription successful');
           return NextResponse.json({
             success: true,
             transcript: backendData.transcript || '',
             fileId: backendData.file_id || backendData.fileId || null,
             source: 'backend',
           });
+        } else {
+          // Backend failed but was configured - return specific error
+          const backendError = backendData?.error || `Backend returned status ${backendResponse.status}`;
+          console.error('Backend transcription failed:', backendError);
+          return NextResponse.json({
+            error: `Backend transcription failed: ${backendError}. Please check your backend service configuration.`,
+            details: process.env.NODE_ENV === 'development' ? backendError : undefined,
+          }, { status: 500 });
         }
       } catch (backendError) {
         console.error('Error calling backend transcription service:', backendError);
-        // We intentionally fall through to local strategies as a fallback.
+        const errorMessage = backendError instanceof Error ? backendError.message : 'Unknown error';
+        
+        // If backend is configured but fails, return error instead of falling back
+        return NextResponse.json({
+          error: `Backend service unavailable: ${errorMessage}. Please ensure your backend is running and accessible at ${backendUrl}`,
+          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        }, { status: 503 });
       }
     }
+
+    // PRIORITY 2: Fallback to direct download (only if backend is NOT configured)
+    // This will show the helpful error message about using Upload File
 
     audioPath = path.join('/tmp', `audio-${Date.now()}.mp3`);
     let audioDownloaded = false;
@@ -249,16 +265,19 @@ export async function POST(req: Request) {
         try { if (fs.existsSync(audioPath)) { fs.unlinkSync(audioPath); } } catch {}
         
         return NextResponse.json({ 
-          error: `YouTube audio download is currently unavailable. This is a known limitation when running in serverless environments. 
+          error: `YouTube audio download is currently unavailable in serverless environments.
 
-To transcribe YouTube videos:
-1. Use the "Upload File" tab instead
-2. Download the video/audio using a tool like yt-dlp or a YouTube downloader
-3. Upload the audio file directly
+To transcribe YouTube videos automatically, configure a backend service:
+1. Deploy the nativewrite-backend service (with yt-dlp)
+2. Set BACKEND_URL and BACKEND_API_KEY in Vercel environment variables
 
-Alternatively, configure a backend service (BACKEND_URL) with yt-dlp for automatic YouTube transcription.`,
+Or use the manual method:
+1. Switch to the "Upload File" tab
+2. Download the video/audio using yt-dlp or a YouTube downloader
+3. Upload the audio file directly for transcription`,
           details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-          suggestion: 'upload_file'
+          suggestion: 'upload_file',
+          backendRequired: true
         }, { status: 500 });
       }
     }
