@@ -5,6 +5,7 @@ import axios from 'axios';
 import FormData from 'form-data';
 import ytdl from 'ytdl-core';
 
+// YouTube URL transcription route - triggers redeploy for backend integration
 // Extract video ID from YouTube URL
 function extractVideoId(url: string): string | null {
   const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
