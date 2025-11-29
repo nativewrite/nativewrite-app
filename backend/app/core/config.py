@@ -1,21 +1,39 @@
 import os
-from pydantic import AnyHttpUrl
-from pydantic_settings import BaseSettings
+from typing import List, Union
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    api_key: str = os.getenv("API_KEY", "")
-    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    allowed_origins: list[AnyHttpUrl] = []
-    audio_root: str = os.getenv("AUDIO_ROOT", "/tmp/nativewrite/audio")
-    cleanup_interval_seconds: int = int(os.getenv("CLEANUP_INTERVAL_SECONDS", "900"))  # 15 min
-    cleanup_max_age_seconds: int = int(os.getenv("CLEANUP_MAX_AGE_SECONDS", "7200"))  # 2 hours
-    rate_limit_requests: int = int(os.getenv("RATE_LIMIT_REQUESTS", "30"))
-    rate_limit_window_seconds: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",  # Ignore extra env vars that don't match fields
+    )
+    
+    api_key: str = ""
+    openai_api_key: str = ""
+    allowed_origins: List[str] = []
+    audio_root: str = "/tmp/nativewrite/audio"
+    cleanup_interval_seconds: int = 900  # 15 min
+    cleanup_max_age_seconds: int = 7200  # 2 hours
+    rate_limit_requests: int = 30
+    rate_limit_window_seconds: int = 60
 
-    class Config:
-        env_file = ".env"
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v: Union[str, List[str], None]) -> List[str]:
+        if v is None:
+            # Try reading from ALLOWED_ORIGIN (singular) as fallback
+            v = os.getenv("ALLOWED_ORIGIN", "") or os.getenv("ALLOWED_ORIGINS", "")
+        if isinstance(v, str):
+            # Handle comma-separated string from env var
+            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
+            return origins
+        if isinstance(v, list):
+            return v
+        return []
 
 
 @lru_cache()
