@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from .core.config import get_settings
-from .routes import download, health
+from .routes import download, health, transcribe
 from .workers.cleanup import start_cleanup_scheduler
 
 
@@ -31,6 +31,7 @@ app.mount("/files", StaticFiles(directory=settings.audio_root), name="files")
 
 app.include_router(download.router)
 app.include_router(health.router)
+app.include_router(transcribe.router)
 
 
 @app.on_event("startup")

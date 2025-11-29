@@ -6,4 +6,5 @@ python-multipart
 aiofiles
 loguru
 pydantic
+openai
 

@@ -5,6 +5,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     api_key: str = os.getenv("API_KEY", "")
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     allowed_origins: list[AnyHttpUrl] = []
     audio_root: str = os.getenv("AUDIO_ROOT", "/tmp/nativewrite/audio")
     cleanup_interval_seconds: int = int(os.getenv("CLEANUP_INTERVAL_SECONDS", "900"))  # 15 min
