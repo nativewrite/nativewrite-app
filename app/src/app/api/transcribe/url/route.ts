@@ -6,7 +6,7 @@ import FormData from 'form-data';
 import ytdl from 'ytdl-core';
 
 // YouTube URL transcription route
-// Backend integration: Requires BACKEND_URL and BACKEND_API_KEY in Vercel env vars
+// Backend integration: BACKEND_URL and BACKEND_API_KEY configured in Vercel
 // Extract video ID from YouTube URL
 function extractVideoId(url: string): string | null {
   const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
