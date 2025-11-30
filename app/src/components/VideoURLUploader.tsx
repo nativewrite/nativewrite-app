@@ -72,32 +72,36 @@ export default function VideoURLUploader({ onTranscript }: Props) {
         )}
       </div>
       {error && (
-        <div className="p-4 rounded-lg border border-blue-200 bg-blue-50 text-blue-900 text-sm space-y-3">
+        <div className={`p-4 rounded-lg border text-sm space-y-3 ${
+          error.includes('Backend') || error.includes('backend') 
+            ? 'border-red-200 bg-red-50 text-red-900' 
+            : 'border-blue-200 bg-blue-50 text-blue-900'
+        }`}>
           <div className="flex items-start gap-2">
-            <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+              error.includes('Backend') || error.includes('backend') 
+                ? 'text-red-600' 
+                : 'text-blue-600'
+            }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div className="flex-1">
-              <div className="font-semibold text-blue-900 mb-2">YouTube URL Transcription</div>
-              <p className="text-sm text-blue-800 mb-3">
-                Direct YouTube downloads are not available in this environment. Use one of these options:
-              </p>
-              <div className="space-y-2">
-                <div className="flex items-start gap-2">
-                  <span className="text-blue-600 font-bold">1.</span>
-                  <div>
-                    <p className="text-sm text-blue-800 font-medium">Use Upload File (Recommended)</p>
-                    <p className="text-xs text-blue-700">Switch to the &quot;Upload File&quot; tab, download the video/audio file, then upload it directly.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-blue-600 font-bold">2.</span>
-                  <div>
-                    <p className="text-sm text-blue-800 font-medium">Configure Backend Service</p>
-                    <p className="text-xs text-blue-700">Deploy nativewrite-backend and set BACKEND_URL in Vercel for automatic transcription.</p>
-                  </div>
-                </div>
+              <div className={`font-semibold mb-2 ${
+                error.includes('Backend') || error.includes('backend') 
+                  ? 'text-red-900' 
+                  : 'text-blue-900'
+              }`}>
+                {error.includes('Backend') || error.includes('backend') 
+                  ? 'Backend Error' 
+                  : 'YouTube URL Transcription'}
               </div>
+              <p className={`text-sm whitespace-pre-line ${
+                error.includes('Backend') || error.includes('backend') 
+                  ? 'text-red-800' 
+                  : 'text-blue-800'
+              }`}>
+                {error}
+              </p>
             </div>
           </div>
         </div>
