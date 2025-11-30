@@ -8,4 +8,5 @@ loguru
 pydantic
 pydantic-settings
 openai
+playwright
 
