@@ -34,14 +34,8 @@ def download_best_audio(url: str, output_dir: str) -> Tuple[str, float]:
         "merge_output_format": "mp3",
         "extractor_args": {
             "youtube": {
-                "player_client": ["ios", "android", "web"],  # Try ios first, fallback to android/web
+                "player_client": ["mweb", "ios", "android", "web"],  # Try mweb first (mobile web)
             }
-        },
-        "http_headers": {
-            "User-Agent": "com.google.ios.youtube/19.09.3 (iPhone14,3; U; CPU iOS 15_6 like Mac OS X)",
-            "Accept": "*/*",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
         },
         "postprocessors": [
             {
