@@ -27,7 +27,11 @@ async def download_audio_endpoint(
     os.makedirs(settings.audio_root, exist_ok=True)
 
     try:
-        raw_path, duration = download_best_audio(str(payload.url), settings.audio_root)
+        raw_path, duration = download_best_audio(
+            str(payload.url), 
+            settings.audio_root,
+            cookies_file=settings.youtube_cookies_file if settings.youtube_cookies_file else None
+        )
         normalized_path = ensure_mp3(raw_path, settings.audio_root)
 
         filename = os.path.basename(normalized_path)

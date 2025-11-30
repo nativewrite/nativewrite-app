@@ -35,7 +35,11 @@ async def transcribe_url_endpoint(
 
     try:
         # Step 1: Download audio
-        raw_path, duration = download_best_audio(str(payload.url), settings.audio_root)
+        raw_path, duration = download_best_audio(
+            str(payload.url), 
+            settings.audio_root,
+            cookies_file=settings.youtube_cookies_file if settings.youtube_cookies_file else None
+        )
         normalized_path = ensure_mp3(raw_path, settings.audio_root)
 
         # Step 2: Transcribe using OpenAI Whisper

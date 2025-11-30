@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import re
 import tempfile
-from typing import Tuple
+from typing import Tuple, Optional
 
 from loguru import logger
 from yt_dlp import YoutubeDL
@@ -18,7 +18,7 @@ def sanitize_filename(name: str) -> str:
     return sanitized or "nativewrite_audio"
 
 
-def download_best_audio(url: str, output_dir: str) -> Tuple[str, float]:
+def download_best_audio(url: str, output_dir: str, cookies_file: Optional[str] = None) -> Tuple[str, float]:
     """
     Download the best audio track and return (filepath, duration_seconds).
     """
@@ -45,6 +45,11 @@ def download_best_audio(url: str, output_dir: str) -> Tuple[str, float]:
             }
         ],
     }
+    
+    # Add cookies if provided
+    if cookies_file and os.path.exists(cookies_file):
+        ydl_opts["cookiefile"] = cookies_file
+        logger.info("Using cookies file: {cookies_file}", cookies_file=cookies_file)
 
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)

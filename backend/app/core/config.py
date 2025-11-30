@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     allowed_origins: List[str] = []
     audio_root: str = "/tmp/nativewrite/audio"
+    youtube_cookies_file: str = ""  # Path to cookies.txt file (optional)
     cleanup_interval_seconds: int = 900  # 15 min
     cleanup_max_age_seconds: int = 7200  # 2 hours
     rate_limit_requests: int = 30
