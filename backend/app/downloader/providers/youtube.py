@@ -1,0 +1,270 @@
+"""YouTube download provider using Playwright headless browser."""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Optional
+from urllib.parse import urlparse
+
+from loguru import logger
+from playwright.async_api import async_playwright, Browser, Page, TimeoutError as PlaywrightTimeout
+
+from ..base import BaseProvider, DownloadResult
+
+
+class YouTubeProvider(BaseProvider):
+    """YouTube provider using Playwright to extract media URLs."""
+
+    name = "youtube"
+    supported_domains = [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "youtu.be",
+    ]
+
+    def can_handle(self, url: str) -> bool:
+        """Check if URL is a YouTube URL."""
+        try:
+            parsed = urlparse(url)
+            hostname = parsed.hostname or ""
+            return any(domain in hostname for domain in self.supported_domains)
+        except Exception:
+            return False
+
+    async def download(
+        self,
+        url: str,
+        output_dir: str,
+        output_type: str = "audio",
+        job_id: Optional[str] = None,
+    ) -> DownloadResult:
+        """
+        Download YouTube video/audio using Playwright.
+
+        Strategy:
+        1. Launch headless browser
+        2. Navigate to YouTube URL
+        3. Wait for page to load and media to be available
+        4. Extract media stream URLs from network requests or page state
+        5. Download using httpx or Playwright's request API
+        6. Process with ffmpeg if needed
+        """
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, f"{job_id or 'youtube'}.mp4")
+
+        try:
+            async with async_playwright() as p:
+                # Launch browser
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                )
+                page = await context.new_page()
+
+                # Intercept network requests to capture media URLs
+                media_urls = []
+                video_url = None
+                audio_url = None
+
+                async def handle_route(route):
+                    """Intercept network requests to find media streams."""
+                    request = route.request
+                    url = request.url
+
+                    # Look for video/audio streams
+                    if ".googlevideo.com" in url or "videoplayback" in url:
+                        if "mime=video" in url or "itag=18" in url or "itag=22" in url:
+                            nonlocal video_url
+                            if not video_url:
+                                video_url = url
+                                logger.info(f"Found video stream: {url[:100]}...")
+                        elif "mime=audio" in url or "itag=140" in url:
+                            nonlocal audio_url
+                            if not audio_url:
+                                audio_url = url
+                                logger.info(f"Found audio stream: {url[:100]}...")
+
+                    await route.continue_()
+
+                # Set up route interception
+                await page.route("**/*", handle_route)
+
+                # Navigate to YouTube URL
+                logger.info(f"Navigating to YouTube URL: {url}")
+                await page.goto(url, wait_until="networkidle", timeout=30000)
+
+                # Wait a bit for media to load
+                await asyncio.sleep(3)
+
+                # Try to get video element and extract src
+                try:
+                    video_element = await page.query_selector("video")
+                    if video_element:
+                        src = await video_element.get_attribute("src")
+                        if src:
+                            video_url = src
+                            logger.info("Found video src attribute")
+                except Exception as e:
+                    logger.warning(f"Could not extract video src: {e}")
+
+                # Try to extract metadata
+                metadata = {}
+                try:
+                    title = await page.title()
+                    metadata["title"] = title.replace(" - YouTube", "").strip()
+
+                    # Try to get duration
+                    try:
+                        duration_text = await page.evaluate(
+                            """() => {
+                                const timeElement = document.querySelector('.ytp-time-duration');
+                                return timeElement ? timeElement.textContent : null;
+                            }"""
+                        )
+                        if duration_text:
+                            # Parse duration (e.g., "10:30" -> 630 seconds)
+                            parts = duration_text.split(":")
+                            if len(parts) == 2:
+                                metadata["duration"] = int(parts[0]) * 60 + int(parts[1])
+                            elif len(parts) == 3:
+                                metadata["duration"] = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+                    except Exception:
+                        pass
+                except Exception as e:
+                    logger.warning(f"Could not extract metadata: {e}")
+
+                await browser.close()
+
+                # Download the media
+                if not video_url and not audio_url:
+                    return DownloadResult(
+                        success=False,
+                        error_message="Could not extract media URLs from YouTube page. The video may be restricted or unavailable.",
+                    )
+
+                # Download video or audio
+                import httpx
+
+                async with httpx.AsyncClient(timeout=300.0) as client:
+                    if output_type == "video" and video_url:
+                        # Download video
+                        logger.info("Downloading video stream...")
+                        response = await client.get(video_url, follow_redirects=True)
+                        response.raise_for_status()
+
+                        with open(output_file, "wb") as f:
+                            f.write(response.content)
+
+                        # Convert to mp4 if needed
+                        final_file = await self._convert_to_mp4(output_file, output_dir, job_id)
+                        if final_file != output_file:
+                            os.remove(output_file)
+                            output_file = final_file
+
+                    elif output_type == "audio" and audio_url:
+                        # Download audio
+                        logger.info("Downloading audio stream...")
+                        response = await client.get(audio_url, follow_redirects=True)
+                        response.raise_for_status()
+
+                        temp_audio = os.path.join(output_dir, f"{job_id or 'temp'}_audio.webm")
+                        with open(temp_audio, "wb") as f:
+                            f.write(response.content)
+
+                        # Convert to audio format (wav for Whisper compatibility)
+                        output_file = await self._convert_to_audio(temp_audio, output_dir, job_id)
+                        os.remove(temp_audio)
+
+                    elif output_type == "video" and audio_url:
+                        # Only audio available, download as audio
+                        logger.info("Only audio stream available, downloading as audio...")
+                        response = await client.get(audio_url, follow_redirects=True)
+                        response.raise_for_status()
+
+                        temp_audio = os.path.join(output_dir, f"{job_id or 'temp'}_audio.webm")
+                        with open(temp_audio, "wb") as f:
+                            f.write(response.content)
+
+                        output_file = await self._convert_to_audio(temp_audio, output_dir, job_id)
+                        os.remove(temp_audio)
+                        output_type = "audio"  # Update type since we only got audio
+
+                    else:
+                        return DownloadResult(
+                            success=False,
+                            error_message=f"No suitable stream found for {output_type}",
+                        )
+
+                return DownloadResult(
+                    success=True,
+                    output_path=output_file,
+                    output_type=output_type,
+                    metadata=metadata,
+                )
+
+        except PlaywrightTimeout:
+            return DownloadResult(
+                success=False,
+                error_message="Timeout waiting for YouTube page to load. The video may be unavailable or restricted.",
+            )
+        except Exception as e:
+            logger.error(f"YouTube download error: {e}")
+            return DownloadResult(
+                success=False,
+                error_message=f"YouTube download failed: {str(e)}",
+            )
+
+    async def _convert_to_mp4(self, input_file: str, output_dir: str, job_id: Optional[str]) -> str:
+        """Convert video to MP4 using ffmpeg."""
+        output_file = os.path.join(output_dir, f"{job_id or 'video'}.mp4")
+        try:
+            subprocess.run(
+                ["ffmpeg", "-i", input_file, "-c", "copy", "-y", output_file],
+                check=True,
+                capture_output=True,
+            )
+            return output_file
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FFmpeg conversion failed: {e.stderr.decode()}")
+            # Return original file if conversion fails
+            return input_file
+
+    async def _convert_to_audio(self, input_file: str, output_dir: str, job_id: Optional[str]) -> str:
+        """Convert to audio (WAV) using ffmpeg for Whisper compatibility."""
+        output_file = os.path.join(output_dir, f"{job_id or 'audio'}.wav")
+        try:
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-i",
+                    input_file,
+                    "-ar",
+                    "16000",  # Whisper prefers 16kHz
+                    "-ac",
+                    "1",  # Mono
+                    "-y",
+                    output_file,
+                ],
+                check=True,
+                capture_output=True,
+            )
+            return output_file
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FFmpeg audio conversion failed: {e.stderr.decode()}")
+            # Fallback to mp3
+            output_file = os.path.join(output_dir, f"{job_id or 'audio'}.mp3")
+            try:
+                subprocess.run(
+                    ["ffmpeg", "-i", input_file, "-acodec", "libmp3lame", "-y", output_file],
+                    check=True,
+                    capture_output=True,
+                )
+                return output_file
+            except Exception:
+                return input_file
+

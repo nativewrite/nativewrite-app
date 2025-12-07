@@ -9,4 +9,5 @@ pydantic
 pydantic-settings
 openai
 playwright
+httpx
 

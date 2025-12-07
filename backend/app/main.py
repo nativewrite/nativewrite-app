@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +11,7 @@ from loguru import logger
 
 from .core.config import get_settings
 from .routes import download, health, transcribe
+from .routers import download as download_router
 from .workers.cleanup import start_cleanup_scheduler
 
 
@@ -29,9 +31,15 @@ if settings.allowed_origins:
 os.makedirs(settings.audio_root, exist_ok=True)
 app.mount("/files", StaticFiles(directory=settings.audio_root), name="files")
 
+# Mount media storage for downloader engine
+media_dir = Path("storage/media")
+media_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=str(media_dir)), name="media")
+
 app.include_router(download.router)
 app.include_router(health.router)
 app.include_router(transcribe.router)
+app.include_router(download_router.router)
 
 
 @app.on_event("startup")
