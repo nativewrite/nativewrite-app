@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from loguru import logger
 from pydantic import BaseModel, HttpUrl
 
 from ..core.config import get_settings

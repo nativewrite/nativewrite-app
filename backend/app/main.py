@@ -11,7 +11,7 @@ from loguru import logger
 
 from .core.config import get_settings
 from .routes import download, health, transcribe
-from .routers import download as download_router
+from .routers.download import router as download_router
 from .workers.cleanup import start_cleanup_scheduler
 
 
