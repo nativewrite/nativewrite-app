@@ -11,7 +11,7 @@ from loguru import logger
 
 from .core.config import get_settings
 from .routes import download, health, transcribe
-from .routers.download import router as download_router
+from .routers import download as download_router_module
 from .workers.cleanup import start_cleanup_scheduler
 
 
@@ -39,7 +39,7 @@ app.mount("/media", StaticFiles(directory=str(media_dir)), name="media")
 app.include_router(download.router)
 app.include_router(health.router)
 app.include_router(transcribe.router)
-app.include_router(download_router.router)
+app.include_router(download_router_module.router)
 
 
 @app.on_event("startup")
