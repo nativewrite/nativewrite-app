@@ -144,6 +144,7 @@ class YouTubeProvider(BaseProvider):
                 if not video_url and not audio_url:
                     return DownloadResult(
                         success=False,
+                        output_type=output_type,
                         error_message="Could not extract media URLs from YouTube page. The video may be restricted or unavailable.",
                     )
 
@@ -197,6 +198,7 @@ class YouTubeProvider(BaseProvider):
                     else:
                         return DownloadResult(
                             success=False,
+                            output_type=output_type,
                             error_message=f"No suitable stream found for {output_type}",
                         )
 
@@ -210,12 +212,14 @@ class YouTubeProvider(BaseProvider):
         except PlaywrightTimeout:
             return DownloadResult(
                 success=False,
+                output_type=output_type,
                 error_message="Timeout waiting for YouTube page to load. The video may be unavailable or restricted.",
             )
         except Exception as e:
             logger.error(f"YouTube download error: {e}")
             return DownloadResult(
                 success=False,
+                output_type=output_type,
                 error_message=f"YouTube download failed: {str(e)}",
             )
 
