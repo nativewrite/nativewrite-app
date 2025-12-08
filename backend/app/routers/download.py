@@ -230,7 +230,7 @@ async def find_job_by_url(url: str = Query(..., description="URL to search for")
     if job.status == "completed" and job.output_path:
         output_path = Path(job.output_path)
         ext = output_path.suffix
-        download_url = f"/media/{job_id}{ext}"
+        download_url = f"/media/{job.job_id}{ext}"
 
     return JobStatusResponse(
         job_id=job.job_id,
