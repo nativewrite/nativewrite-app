@@ -142,11 +142,9 @@ class YouTubeProvider(BaseProvider):
 
                 # Download the media
                 if not video_url and not audio_url:
-                    return DownloadResult(
-                        success=False,
-                        output_type=output_type,
-                        error_message="Could not extract media URLs from YouTube page. The video may be restricted or unavailable.",
-                    )
+                    # Fallback to yt-dlp if Playwright fails
+                    logger.warning("Playwright failed to extract URLs, falling back to yt-dlp")
+                    return await self._fallback_to_ytdlp(url, output_dir, output_type, job_id)
 
                 # Download video or audio
                 import httpx
@@ -196,11 +194,9 @@ class YouTubeProvider(BaseProvider):
                         output_type = "audio"  # Update type since we only got audio
 
                     else:
-                        return DownloadResult(
-                            success=False,
-                            output_type=output_type,
-                            error_message=f"No suitable stream found for {output_type}",
-                        )
+                        # Fallback to yt-dlp if no stream found
+                        logger.warning("No stream found with Playwright, falling back to yt-dlp")
+                        return await self._fallback_to_ytdlp(url, output_dir, output_type, job_id)
 
                 return DownloadResult(
                     success=True,
@@ -210,18 +206,11 @@ class YouTubeProvider(BaseProvider):
                 )
 
         except PlaywrightTimeout:
-            return DownloadResult(
-                success=False,
-                output_type=output_type,
-                error_message="Timeout waiting for YouTube page to load. The video may be unavailable or restricted.",
-            )
+            logger.warning("Playwright timeout, falling back to yt-dlp")
+            return await self._fallback_to_ytdlp(url, output_dir, output_type, job_id)
         except Exception as e:
-            logger.error(f"YouTube download error: {e}")
-            return DownloadResult(
-                success=False,
-                output_type=output_type,
-                error_message=f"YouTube download failed: {str(e)}",
-            )
+            logger.warning(f"Playwright error: {e}, falling back to yt-dlp")
+            return await self._fallback_to_ytdlp(url, output_dir, output_type, job_id)
 
     async def _convert_to_mp4(self, input_file: str, output_dir: str, job_id: Optional[str]) -> str:
         """Convert video to MP4 using ffmpeg."""
@@ -271,4 +260,88 @@ class YouTubeProvider(BaseProvider):
                 return output_file
             except Exception:
                 return input_file
+
+    async def _fallback_to_ytdlp(
+        self,
+        url: str,
+        output_dir: str,
+        output_type: str,
+        job_id: Optional[str],
+    ) -> DownloadResult:
+        """
+        Fallback to yt-dlp when Playwright fails.
+        Uses the existing multi-strategy extractor.
+        """
+        try:
+            from ...core.config import get_settings
+            from ...core.youtube_extractor import extract_youtube_audio
+
+            settings = get_settings()
+            cookies_file = settings.youtube_cookies_file if hasattr(settings, 'youtube_cookies_file') else None
+
+            logger.info("Using yt-dlp fallback for YouTube download")
+
+            if output_type == "audio":
+                # Use the existing extractor
+                audio_path, duration = extract_youtube_audio(url, output_dir, cookies_file)
+
+                # Convert to WAV for Whisper if needed
+                if not audio_path.endswith('.wav'):
+                    output_file = await self._convert_to_audio(audio_path, output_dir, job_id)
+                    if output_file != audio_path and os.path.exists(audio_path):
+                        os.remove(audio_path)
+                else:
+                    output_file = audio_path
+
+                metadata = {"duration": duration}
+                return DownloadResult(
+                    success=True,
+                    output_path=output_file,
+                    output_type="audio",
+                    metadata=metadata,
+                )
+            else:
+                # For video, use yt-dlp directly
+                from yt_dlp import YoutubeDL
+
+                output_file = os.path.join(output_dir, f"{job_id or 'video'}.mp4")
+                ydl_opts = {
+                    "format": "bestvideo+bestaudio/best",
+                    "outtmpl": output_file.replace(".mp4", ".%(ext)s"),
+                    "merge_output_format": "mp4",
+                    "noplaylist": True,
+                }
+
+                if cookies_file and os.path.exists(cookies_file):
+                    ydl_opts["cookiefile"] = cookies_file
+
+                with YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    downloaded_path = ydl.prepare_filename(info).replace(".webm", ".mp4").replace(".mkv", ".mp4")
+
+                if os.path.exists(downloaded_path):
+                    metadata = {
+                        "title": info.get("title", ""),
+                        "duration": float(info.get("duration") or 0),
+                    }
+                    return DownloadResult(
+                        success=True,
+                        output_path=downloaded_path,
+                        output_type="video",
+                        metadata=metadata,
+                    )
+
+            return DownloadResult(
+                success=False,
+                output_type=output_type,
+                error_message="yt-dlp fallback also failed. The video may be restricted or unavailable.",
+            )
+
+        except Exception as e:
+            logger.error(f"yt-dlp fallback error: {e}")
+            return DownloadResult(
+                success=False,
+                output_type=output_type,
+                error_message=f"Both Playwright and yt-dlp failed: {str(e)}",
+            )
 
