@@ -58,30 +58,29 @@ function TranscriberContent() {
 
     setIsLoading(true);
     try {
-      let audioData = null;
-      let audioUrl = null;
-      let isYouTube = false;
+      let response: Response;
 
       if (inputType === 'file' && selectedFile) {
-        // Convert file to base64 for direct processing
-        const reader = new FileReader();
-        audioData = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(selectedFile);
+        // Send file as FormData for proper handling (supports video files)
+        const formData = new FormData();
+        formData.append('audio', selectedFile);
+        
+        response = await fetch('/api/transcriber', {
+          method: 'POST',
+          body: formData
         });
       } else if (inputType === 'url' && videoUrl) {
-        audioUrl = videoUrl;
-        // Check if it's a YouTube URL
-        isYouTube = videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be');
+        // Send URL as JSON
+        response = await fetch('/api/transcriber', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audioUrl: videoUrl })
+        });
+      } else {
+        alert('Please select a file or enter a URL');
+        setIsLoading(false);
+        return;
       }
-
-      // Start transcription
-      const response = await fetch('/api/transcriber', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioUrl, audioData, isYouTube })
-      });
 
       const data = await response.json();
       
@@ -90,7 +89,8 @@ function TranscriberContent() {
       } else {
         alert(data.error || 'Failed to transcribe audio');
       }
-    } catch {
+    } catch (error) {
+      console.error('Transcription error:', error);
       alert('Failed to transcribe audio. Please try again.');
     } finally {
       setIsLoading(false);

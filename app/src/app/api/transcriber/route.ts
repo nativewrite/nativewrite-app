@@ -96,7 +96,7 @@ function extractVideoId(url: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    // Check if this is a FormData upload (from WaveformRecorder)
+    // Check if this is a FormData upload (from file upload or WaveformRecorder)
     const contentType = req.headers.get('content-type') || '';
     let audioFile: File | null = null;
     let audioUrl: string | null = null;
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     let language = 'auto';
 
     if (contentType.includes('multipart/form-data')) {
-      // Handle file upload from WaveformRecorder
+      // Handle file upload (from file upload or WaveformRecorder)
       const formData = await req.formData();
       audioFile = formData.get('audio') as File | null;
       const langParam = formData.get('language');
@@ -115,8 +115,49 @@ export async function POST(req: NextRequest) {
       if (!audioFile) {
         return NextResponse.json({ error: 'Audio file is required' }, { status: 400 });
       }
+
+      // Check if backend service is configured for file uploads
+      const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+      const backendApiKey = process.env.BACKEND_API_KEY;
+
+      if (backendUrl && backendApiKey) {
+        try {
+          console.log('Forwarding file upload to backend service:', backendUrl);
+          
+          // Forward the file to the backend service
+          const backendFormData = new FormData();
+          backendFormData.append('audio', audioFile);
+
+          const backendResponse = await fetch(`${backendUrl}/api/transcribe-upload`, {
+            method: 'POST',
+            headers: {
+              'X-API-Key': backendApiKey,
+            },
+            body: backendFormData,
+            signal: AbortSignal.timeout(300000), // 5 minute timeout
+          });
+
+          const backendData = await backendResponse.json();
+
+          if (backendResponse.ok && backendData?.success && backendData?.transcript) {
+            console.log('Backend transcription successful');
+            return NextResponse.json({
+              success: true,
+              text: backendData.transcript || '',
+              segments: [],
+              speakers: []
+            });
+          } else {
+            console.error('Backend transcription failed:', backendData?.error);
+            // Fall through to try local processing
+          }
+        } catch (backendError) {
+          console.error('Error calling backend transcription service:', backendError);
+          // Fall through to try local processing
+        }
+      }
     } else {
-      // Handle JSON request (from other sources)
+      // Handle JSON request (from URL sources)
       const body = await req.json();
       audioUrl = body.audioUrl || null;
       audioData = body.audioData || null;
@@ -155,27 +196,29 @@ export async function POST(req: NextRequest) {
           }, { status: 500 });
         }
       }
-      
-      // If we have base64 audio data, upload it first
-      if (audioData && !audioUrl) {
-        try {
-          // For demo purposes, we'll simulate a successful upload
-          // In production, you'd upload to a cloud storage service
-          audioSource = `https://example.com/audio/${Date.now()}.mp3`;
-        } catch {
-          return NextResponse.json({ 
-            error: 'Failed to upload audio file' 
-          }, { status: 500 });
-        }
-      }
     }
 
     // Use OpenAI Whisper for transcription
     try {
       let transcriptionResult;
       
-      // Handle direct file upload (from WaveformRecorder)
+      // Handle direct file upload (supports both audio and video files)
+      // OpenAI Whisper API can handle video files directly
       if (audioFile) {
+        // Check file type and provide helpful error if unsupported
+        const fileType = audioFile.type || '';
+        const fileName = audioFile.name || '';
+        const isVideo = fileType.startsWith('video/') || 
+                       /\.(mp4|avi|mov|mkv|webm|flv|wmv|m4v)$/i.test(fileName);
+        const isAudio = fileType.startsWith('audio/') || 
+                       /\.(mp3|wav|m4a|ogg|flac|aac|wma)$/i.test(fileName);
+
+        if (!isVideo && !isAudio) {
+          return NextResponse.json({ 
+            error: 'Unsupported file type. Please upload an audio or video file.' 
+          }, { status: 400 });
+        }
+
         transcriptionResult = await openai.audio.transcriptions.create({
           file: audioFile,
           model: 'whisper-1',
@@ -184,12 +227,17 @@ export async function POST(req: NextRequest) {
           timestamp_granularities: ['segment']
         });
       } else if (audioData) {
-        // Convert base64 to buffer for OpenAI
-        const base64Data = audioData.split(',')[1];
+        // Convert base64 to buffer for OpenAI (legacy support)
+        // Note: This assumes the base64 data is already audio format
+        const base64Data = audioData.includes(',') ? audioData.split(',')[1] : audioData;
         const audioBuffer = Buffer.from(base64Data, 'base64');
         
+        // Try to detect MIME type from base64 data URI if present
+        const mimeMatch = audioData.match(/data:([^;]+)/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'audio/mpeg';
+        
         // Create a file-like object for OpenAI
-        const fileForOpenAI = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
+        const fileForOpenAI = new File([audioBuffer], 'audio.mp3', { type: mimeType });
         
         transcriptionResult = await openai.audio.transcriptions.create({
           file: fileForOpenAI,
