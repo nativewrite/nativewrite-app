@@ -13,6 +13,7 @@ from .core.config import get_settings
 from .routes import download, health, transcribe
 from .routers import download as download_router_module
 from .workers.cleanup import start_cleanup_scheduler
+from .humanizer import router as humanizer_router
 
 
 settings = get_settings()
@@ -40,6 +41,7 @@ app.include_router(download.router)
 app.include_router(health.router)
 app.include_router(transcribe.router)
 app.include_router(download_router_module.router)
+app.include_router(humanizer_router)
 
 
 @app.on_event("startup")
