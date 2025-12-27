@@ -33,6 +33,16 @@ export async function POST(req: NextRequest) {
           signal: AbortSignal.timeout(300000), // 5 minute timeout
         });
 
+        // Handle non-JSON responses (like 404 HTML pages)
+        const contentType = backendResponse.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await backendResponse.text();
+          console.error('Backend returned non-JSON response:', text);
+          return NextResponse.json({
+            error: `Backend returned invalid response (status ${backendResponse.status}). Please check that the backend is running at ${backendUrl} and the humanizer route is registered.`,
+          }, { status: 502 });
+        }
+
         const backendData = await backendResponse.json();
 
         if (backendResponse.ok && backendData) {
@@ -43,15 +53,16 @@ export async function POST(req: NextRequest) {
             report: backendData.report,
           });
         } else {
-          const errorMessage = backendData?.detail || backendData?.error || 'Backend humanization failed';
+          const errorMessage = backendData?.detail || backendData?.error || `Backend returned status ${backendResponse.status}`;
           return NextResponse.json({
             error: errorMessage,
           }, { status: backendResponse.status || 500 });
         }
       } catch (backendError) {
         console.error('Backend humanizer error:', backendError);
+        const errorMessage = backendError instanceof Error ? backendError.message : 'Unknown error';
         return NextResponse.json({
-          error: 'Backend service unavailable. Please ensure your backend is running and configured.',
+          error: `Backend service unavailable: ${errorMessage}. Please ensure your backend is running at ${backendUrl} and accessible.`,
         }, { status: 503 });
       }
     } else {

@@ -56,6 +56,20 @@ export default function HumanizerPage() {
         })
       });
 
+      if (!response.ok) {
+        // Handle HTTP errors
+        const errorText = await response.text();
+        let errorMessage = `HTTP ${response.status}: Failed to humanize text`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        alert(errorMessage);
+        return;
+      }
+
       const data = await response.json();
       
       if (data.success) {
@@ -68,7 +82,8 @@ export default function HumanizerPage() {
       }
     } catch (error) {
       console.error('Humanization error:', error);
-      alert('Failed to humanize text. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to humanize text. Please try again.';
+      alert(`Error: ${errorMessage}. Please check that the backend service is running and configured.`);
     } finally {
       setIsLoading(false);
     }
