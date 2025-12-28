@@ -36,9 +36,9 @@ export default function ScoreBar({
 
   return (
     <div className={className}>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium text-slate-700">{label}</span>
-        <span className="text-sm font-semibold" style={{ color }}>
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <span className="text-sm font-medium text-slate-700 flex-shrink-0 min-w-0 break-words">{label}</span>
+        <span className="text-sm font-semibold flex-shrink-0 whitespace-nowrap ml-2" style={{ color }}>
           {value.toFixed(unit ? 1 : 0)}{unit}
         </span>
       </div>

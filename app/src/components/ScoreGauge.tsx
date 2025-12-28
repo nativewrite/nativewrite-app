@@ -29,7 +29,7 @@ export default function ScoreGauge({ value, max, label, unit = "", className = "
 
   return (
     <div className={`flex flex-col items-center ${className}`}>
-      <div className="relative w-32 h-20">
+      <div className="relative w-32 h-20 mb-3">
         {/* Background semi-circle */}
         <svg width="128" height="64" viewBox="0 0 128 64" className="overflow-visible">
           <path
@@ -53,16 +53,18 @@ export default function ScoreGauge({ value, max, label, unit = "", className = "
           />
         </svg>
         {/* Value text */}
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
-            <div className="text-2xl font-bold" style={{ color }}>
+            <div className="text-2xl font-bold leading-tight" style={{ color }}>
               {value.toFixed(unit ? 1 : 0)}
             </div>
-            {unit && <div className="text-xs text-slate-500">{unit}</div>}
+            {unit && <div className="text-xs text-slate-500 mt-0.5">{unit}</div>}
           </div>
         </div>
       </div>
-      <div className="mt-2 text-sm font-medium text-slate-700 text-center max-w-32">{label}</div>
+      <div className="text-sm font-medium text-slate-700 text-center px-2 w-full min-h-[2.5rem] flex items-center justify-center">
+        <span className="break-words leading-tight">{label}</span>
+      </div>
     </div>
   );
 }

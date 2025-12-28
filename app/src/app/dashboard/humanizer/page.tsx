@@ -239,7 +239,7 @@ export default function HumanizerPage() {
             {/* Score Gauges (Naturalness & Predictability) */}
             <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl">
               <h2 className="text-xl font-bold text-slate-900 mb-6">Score Visualization</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-8">
                 <ScoreGauge
                   value={report.after.naturalness}
                   max={100}
@@ -254,7 +254,7 @@ export default function HumanizerPage() {
               </div>
 
               {/* Score Bars */}
-              <div className="space-y-4">
+              <div className="space-y-5 mt-8">
                 <ScoreBar
                   value={report.after.burstiness_index}
                   max={300}
