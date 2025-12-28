@@ -66,8 +66,25 @@ export async function POST(req: NextRequest) {
         }, { status: 503 });
       }
     } else {
+      // If backend is not configured, return a helpful error message
+      const isConfigured = !!(process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL);
+      const hasApiKey = !!process.env.BACKEND_API_KEY;
+      
+      let errorMsg = 'Backend service not configured. ';
+      if (!isConfigured && !hasApiKey) {
+        errorMsg += 'Please set BACKEND_URL (or NEXT_PUBLIC_BACKEND_URL) and BACKEND_API_KEY environment variables.';
+      } else if (!isConfigured) {
+        errorMsg += 'Please set BACKEND_URL (or NEXT_PUBLIC_BACKEND_URL) environment variable.';
+      } else if (!hasApiKey) {
+        errorMsg += 'Please set BACKEND_API_KEY environment variable.';
+      }
+      
       return NextResponse.json({
-        error: 'Backend service not configured. Please set BACKEND_URL and BACKEND_API_KEY.',
+        error: errorMsg,
+        debug: process.env.NODE_ENV === 'development' ? {
+          hasBackendUrl: isConfigured,
+          hasApiKey: hasApiKey,
+        } : undefined,
       }, { status: 500 });
     }
 
