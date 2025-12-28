@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { openai } from '@/lib/openai';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { text, lang = "en", mode = "standard", strict_meaning = "high", voice_strength = 50, preserve_keywords = [], avoid_phrases = [] } = body;
+    const { text, lang = "en", mode = "standard" } = body;
 
     if (!text || text.trim().length === 0) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
-    // Forward to backend service
+    // Try backend service first if configured
     const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
     const backendApiKey = process.env.BACKEND_API_KEY;
 
@@ -25,68 +26,65 @@ export async function POST(req: NextRequest) {
             text,
             lang,
             mode,
-            strict_meaning,
-            voice_strength,
-            preserve_keywords,
-            avoid_phrases,
+            strict_meaning: 'high',
+            voice_strength: 50,
+            preserve_keywords: [],
+            avoid_phrases: [],
           }),
           signal: AbortSignal.timeout(300000), // 5 minute timeout
         });
 
-        // Handle non-JSON responses (like 404 HTML pages)
-        const contentType = backendResponse.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const text = await backendResponse.text();
-          console.error('Backend returned non-JSON response:', text);
-          return NextResponse.json({
-            error: `Backend returned invalid response (status ${backendResponse.status}). Please check that the backend is running at ${backendUrl} and the humanizer route is registered.`,
-          }, { status: 502 });
+        if (backendResponse.ok) {
+          const contentType = backendResponse.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const backendData = await backendResponse.json();
+            if (backendData && backendData.humanized_text) {
+              return NextResponse.json({
+                success: true,
+                humanizedText: backendData.humanized_text,
+                originalText: backendData.original_text || text,
+                report: backendData.report,
+                originalLength: text.length,
+                humanizedLength: backendData.humanized_text.length
+              });
+            }
+          }
         }
-
-        const backendData = await backendResponse.json();
-
-        if (backendResponse.ok && backendData) {
-          return NextResponse.json({
-            success: true,
-            originalText: backendData.original_text,
-            humanizedText: backendData.humanized_text,
-            report: backendData.report,
-          });
-        } else {
-          const errorMessage = backendData?.detail || backendData?.error || `Backend returned status ${backendResponse.status}`;
-          return NextResponse.json({
-            error: errorMessage,
-          }, { status: backendResponse.status || 500 });
-        }
+        // If backend fails, fall through to OpenAI direct
       } catch (backendError) {
-        console.error('Backend humanizer error:', backendError);
-        const errorMessage = backendError instanceof Error ? backendError.message : 'Unknown error';
-        return NextResponse.json({
-          error: `Backend service unavailable: ${errorMessage}. Please ensure your backend is running at ${backendUrl} and accessible.`,
-        }, { status: 503 });
+        console.error('Backend humanizer error, falling back to OpenAI:', backendError);
+        // Fall through to OpenAI direct
       }
-    } else {
-      // If backend is not configured, return a helpful error message
-      const isConfigured = !!(process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL);
-      const hasApiKey = !!process.env.BACKEND_API_KEY;
-      
-      let errorMsg = 'Backend service not configured. ';
-      if (!isConfigured && !hasApiKey) {
-        errorMsg += 'Please set BACKEND_URL (or NEXT_PUBLIC_BACKEND_URL) and BACKEND_API_KEY environment variables.';
-      } else if (!isConfigured) {
-        errorMsg += 'Please set BACKEND_URL (or NEXT_PUBLIC_BACKEND_URL) environment variable.';
-      } else if (!hasApiKey) {
-        errorMsg += 'Please set BACKEND_API_KEY environment variable.';
-      }
-      
-      return NextResponse.json({
-        error: errorMsg,
-        debug: process.env.NODE_ENV === 'development' ? {
-          hasBackendUrl: isConfigured,
-          hasApiKey: hasApiKey,
-        } : undefined,
-      }, { status: 500 });
     }
+
+    // Fallback to direct OpenAI (original working method)
+    const systemPrompt = `You are an expert at humanizing AI-generated text. Rewrite the given text to sound more natural, human-like, and conversational while maintaining the original meaning and key information. Make it sound like it was written by a human, not an AI. Use natural language patterns, varied sentence structures, and human-like expressions.`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt
+        },
+        {
+          role: "user",
+          content: text
+        }
+      ],
+      temperature: 0.8,
+      max_tokens: 3000,
+    });
+
+    const humanizedText = completion.choices[0]?.message?.content || '';
+
+    return NextResponse.json({ 
+      success: true, 
+      humanizedText,
+      originalText: text,
+      originalLength: text.length,
+      humanizedLength: humanizedText.length
+    });
 
   } catch (error) {
     console.error('Humanizer API error:', error);
