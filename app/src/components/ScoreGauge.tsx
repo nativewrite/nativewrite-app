@@ -28,10 +28,10 @@ export default function ScoreGauge({ value, max, label, unit = "", className = "
   const dashOffset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className={`flex flex-col items-center ${className}`}>
-      <div className="relative w-32 h-20 mb-3">
+    <div className={`flex flex-col items-center w-full ${className}`}>
+      <div className="relative w-36 h-24 mb-4">
         {/* Background semi-circle */}
-        <svg width="128" height="64" viewBox="0 0 128 64" className="overflow-visible">
+        <svg width="144" height="72" viewBox="0 0 128 64" className="overflow-visible" preserveAspectRatio="xMidYMid meet">
           <path
             d="M 8 56 A 56 56 0 0 1 120 56"
             fill="none"
@@ -55,15 +55,15 @@ export default function ScoreGauge({ value, max, label, unit = "", className = "
         {/* Value text */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
-            <div className="text-2xl font-bold leading-tight" style={{ color }}>
+            <div className="text-3xl font-bold leading-none" style={{ color }}>
               {value.toFixed(unit ? 1 : 0)}
             </div>
-            {unit && <div className="text-xs text-slate-500 mt-0.5">{unit}</div>}
+            {unit && <div className="text-xs text-slate-500 mt-1">{unit}</div>}
           </div>
         </div>
       </div>
-      <div className="text-sm font-medium text-slate-700 text-center px-2 w-full min-h-[2.5rem] flex items-center justify-center">
-        <span className="break-words leading-tight">{label}</span>
+      <div className="text-sm font-medium text-slate-700 text-center px-3 w-full min-h-[3rem] flex items-start justify-center">
+        <span className="break-words leading-snug">{label}</span>
       </div>
     </div>
   );

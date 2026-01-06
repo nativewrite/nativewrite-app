@@ -35,10 +35,10 @@ export default function ScoreBar({
   const color = getColor();
 
   return (
-    <div className={className}>
-      <div className="flex items-center justify-between mb-2 gap-2">
-        <span className="text-sm font-medium text-slate-700 flex-shrink-0 min-w-0 break-words">{label}</span>
-        <span className="text-sm font-semibold flex-shrink-0 whitespace-nowrap ml-2" style={{ color }}>
+    <div className={`w-full ${className}`}>
+      <div className="flex items-start justify-between mb-2 gap-3">
+        <span className="text-sm font-medium text-slate-700 flex-1 min-w-0 break-words leading-snug">{label}</span>
+        <span className="text-sm font-semibold flex-shrink-0 whitespace-nowrap ml-auto" style={{ color }}>
           {value.toFixed(unit ? 1 : 0)}{unit}
         </span>
       </div>

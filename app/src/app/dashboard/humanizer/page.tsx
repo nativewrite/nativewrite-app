@@ -237,24 +237,28 @@ export default function HumanizerPage() {
         {report && (
           <div className="space-y-6">
             {/* Score Gauges (Naturalness & Predictability) */}
-            <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-8 shadow-xl">
+            <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg p-6 md:p-8 shadow-xl">
               <h2 className="text-xl font-bold text-slate-900 mb-6">Score Visualization</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-8">
-                <ScoreGauge
-                  value={report.after.naturalness}
-                  max={100}
-                  label="Naturalness Score (estimated)"
-                />
-                <ScoreGauge
-                  value={report.after.predictability_index}
-                  max={200}
-                  label="Predictability Index"
-                  unit=""
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 lg:gap-12 mb-8">
+                <div className="flex justify-center">
+                  <ScoreGauge
+                    value={report.after.naturalness}
+                    max={100}
+                    label="Naturalness Score (estimated)"
+                  />
+                </div>
+                <div className="flex justify-center">
+                  <ScoreGauge
+                    value={report.after.predictability_index}
+                    max={200}
+                    label="Predictability Index"
+                    unit=""
+                  />
+                </div>
               </div>
 
               {/* Score Bars */}
-              <div className="space-y-5 mt-8">
+              <div className="space-y-6 mt-8 pt-6 border-t border-slate-200">
                 <ScoreBar
                   value={report.after.burstiness_index}
                   max={300}
