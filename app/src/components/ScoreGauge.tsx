@@ -29,7 +29,8 @@ export default function ScoreGauge({ value, max, label, unit = "", className = "
 
   return (
     <div className={`flex flex-col items-center w-full ${className}`}>
-      <div className="relative w-36 h-24 mb-4">
+      {/* Gauge Container */}
+      <div className="relative w-36 h-24 mb-6">
         {/* Background semi-circle */}
         <svg width="144" height="72" viewBox="0 0 128 64" className="overflow-visible" preserveAspectRatio="xMidYMid meet">
           <path
@@ -52,9 +53,9 @@ export default function ScoreGauge({ value, max, label, unit = "", className = "
             style={{ transform: 'rotate(-90deg)', transformOrigin: '64px 56px' }}
           />
         </svg>
-        {/* Value text */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center">
+        {/* Value text - positioned in center of semi-circle */}
+        <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center pointer-events-none">
+          <div className="text-center -mt-2">
             <div className="text-3xl font-bold leading-none" style={{ color }}>
               {value.toFixed(unit ? 1 : 0)}
             </div>
@@ -62,8 +63,9 @@ export default function ScoreGauge({ value, max, label, unit = "", className = "
           </div>
         </div>
       </div>
-      <div className="text-sm font-medium text-slate-700 text-center px-3 w-full min-h-[3rem] flex items-start justify-center">
-        <span className="break-words leading-snug">{label}</span>
+      {/* Label - clearly below the gauge */}
+      <div className="text-sm font-medium text-slate-700 text-center px-2 w-full">
+        <div className="break-words leading-relaxed">{label}</div>
       </div>
     </div>
   );
