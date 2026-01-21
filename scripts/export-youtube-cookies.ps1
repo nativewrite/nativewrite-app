@@ -42,3 +42,7 @@ Write-Host "2. Go to youtube.com and log in" -ForegroundColor White
 Write-Host "3. Click extension → Export" -ForegroundColor White
 Write-Host "4. Upload cookies.txt to VPS" -ForegroundColor White
 
+
+
+
+

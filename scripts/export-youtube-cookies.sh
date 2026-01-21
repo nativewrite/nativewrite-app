@@ -36,3 +36,7 @@ echo "2. Go to youtube.com and log in"
 echo "3. Click extension → Export"
 echo "4. Upload cookies.txt to VPS"
 
+
+
+
+

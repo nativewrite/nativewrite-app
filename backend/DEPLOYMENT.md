@@ -141,3 +141,7 @@ The frontend should:
 - Media files are served via `/media/{job_id}.{ext}`
 - Old yt-dlp endpoints still exist but new system is recommended
 
+
+
+
+

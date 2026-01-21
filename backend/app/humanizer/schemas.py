@@ -51,3 +51,6 @@ class HumanizeResponse(BaseModel):
     humanized_text: str
     report: HumanizerReport
 
+
+
+

@@ -25,10 +25,16 @@ export const authOptions: AuthOptions = {
 		}),
 	],
 	callbacks: {
+		async signIn({ user, account, profile }) {
+			// Allow all Google sign-ins
+			return true;
+		},
 		async redirect({ url, baseUrl }) {
+			// Handle relative URLs
 			if (url.startsWith("/")) {
 				return `${baseUrl}${url}`;
 			}
+			// Handle absolute URLs from the same origin
 			try {
 				const targetOrigin = new URL(url).origin;
 				if (targetOrigin === baseUrl) {
@@ -37,12 +43,15 @@ export const authOptions: AuthOptions = {
 			} catch {
 				// ignore malformed URLs and fall through to baseUrl
 			}
-			return baseUrl;
+			// Default redirect to dashboard
+			return `${baseUrl}/dashboard`;
 		},
 	},
 	pages: {
 		signIn: "/login",
+		error: "/login",
 	},
+	debug: process.env.NODE_ENV === "development",
 };
 
 
